@@ -1,5 +1,7 @@
 import md5 from "md5";
 import pLimit from "p-limit";
+import { v4 as uuidv4 } from 'uuid';
+
 
 import type { components } from "@/lib/api";
 import { fetchClient } from "@/utils/api";
@@ -127,7 +129,7 @@ export const uploadFile = async (
           const fileBlob = totalParts > 1 ? file.slice(start, end) : file;
 
           const partName = randomChunking
-            ? md5(crypto.randomUUID())
+            ? md5(uuidv4())
             : totalParts > 1
               ? `${fileName}.part.${zeroPad(partIndex + 1, 3)}`
               : fileName;
