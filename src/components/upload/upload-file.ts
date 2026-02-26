@@ -8,6 +8,19 @@ import { fetchClient } from "@/utils/api";
 import { formatTime, zeroPad } from "@/utils/common";
 import type { UploadParams } from "./types";
 
+
+function generateUUID(): string {
+  // Check if crypto.randomUUID is available and call it to generate a UUID
+  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+  }
+
+  // Fallback to uuidv4() if crypto.randomUUID is not available
+  return uuidv4();
+}
+
+
+
 export const uploadChunk = <T extends {}>(
   url: string,
   body: Blob,
@@ -129,7 +142,7 @@ export const uploadFile = async (
           const fileBlob = totalParts > 1 ? file.slice(start, end) : file;
 
           const partName = randomChunking
-            ? md5(uuidv4())
+            ? md5(generateUUID())
             : totalParts > 1
               ? `${fileName}.part.${zeroPad(partIndex + 1, 3)}`
               : fileName;
