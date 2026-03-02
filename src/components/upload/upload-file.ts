@@ -1,6 +1,5 @@
 import md5 from "md5";
 import pLimit from "p-limit";
-import { v4 as uuidv4 } from 'uuid';
 
 
 import type { components } from "@/lib/api";
@@ -15,8 +14,8 @@ function generateUUID(): string {
       return crypto.randomUUID();
   }
 
-  // Fallback to uuidv4() if crypto.randomUUID is not available
-  return uuidv4();
+  // Fallback to Date.now() if crypto.randomUUID is not available
+  return Date.now().toString();
 }
 
 
