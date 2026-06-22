@@ -23,6 +23,7 @@ import { getSortState, SortOrder } from "@/utils/defaults";
 import { useFileUploadStore, useModalStore } from "@/utils/stores";
 import Share from "~icons/fluent/share-24-regular";
 import MaterialSymbolsFolder from "~icons/material-symbols/folder";
+import MaterialSymbolsFolderOpen from "~icons/material-symbols/folder-open-outline-rounded";
 import { useNavigate } from "@tanstack/react-router";
 import { $api } from "@/utils/api";
 
@@ -78,6 +79,16 @@ export const CustomActions = {
       toolbar: true,
       icon: MaterialSymbolsFolder,
       group: "Add",
+    },
+  } as const),
+
+  ShowInFolder: defineFileAction({
+    id: "show_in_folder",
+    requiresSelection: true,
+    button: {
+      name: "Show in Folder",
+      contextMenu: true,
+      icon: MaterialSymbolsFolderOpen,
     },
   } as const),
 };
@@ -228,6 +239,27 @@ export const useFileAction = (
           navigator.clipboard.writeText(clipboardText);
           break;
         }
+
+        case CustomActions.ShowInFolder.id: {
+          const file = data.state.selectedFiles[0];
+          if (!file) break;
+          const parentId = file.parentId as string | undefined;
+          navigate(
+            parentId
+              ? {
+                  to: "/$view",
+                  params: { view: "browse" },
+                  search: { parentId, selectId: file.id },
+                }
+              : {
+                  to: "/$view",
+                  params: { view: "my-drive" },
+                  search: { selectId: file.id },
+                },
+          );
+          break;
+        }
+
         case FbActions.MoveFiles.id: {
           const { files, target } = data.payload;
           moveFiles

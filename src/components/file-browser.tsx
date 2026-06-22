@@ -1,9 +1,10 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { getRouteApi } from "@tanstack/react-router";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import {
   FbActions,
   FileBrowser,
+  type FileBrowserHandle,
   FileContextMenu,
   FileList,
   FileNavbar,
@@ -59,7 +60,11 @@ export const DriveFileBrowser = memo(() => {
 
   const search = fileRoute.useSearch();
 
+  const navigate = useNavigate();
+
   const listRef = useRef<VirtuosoHandle | VirtuosoGridHandle>(null);
+
+  const fileBrowserRef = useRef<FileBrowserHandle>(null);
 
   const [session] = useSession();
 
@@ -100,6 +105,24 @@ export const DriveFileBrowser = memo(() => {
     return [];
   }, [search?.path, view]);
 
+  const scopedFileActions = useMemo(() => {
+    if (view === "search") return fileActions;
+    return fileActions.filter((action) => action.id !== CustomActions.ShowInFolder.id);
+  }, [view]);
+
+  useEffect(() => {
+    const selectId = search?.selectId;
+    if (!selectId || !files?.some((file) => file?.id === selectId)) return;
+
+    fileBrowserRef.current?.setFileSelection(new Set([selectId]), true);
+    navigate({
+      to: "/$view",
+      params: { view },
+      search: (prev) => ({ ...prev, selectId: undefined }),
+      replace: true,
+    });
+  }, [search?.selectId, files, navigate, view]);
+
   useEffect(() => {
     if (firstRender) {
       firstRender = false;
@@ -126,10 +149,11 @@ export const DriveFileBrowser = memo(() => {
     <div className="size-full m-auto relative">
       <UploadDropzone isDisabled={view !== "my-drive"}>
         <FileBrowser
+          ref={fileBrowserRef}
           files={files}
           folderChain={folderChain}
           onFileAction={actionHandler()}
-          fileActions={fileActions}
+          fileActions={scopedFileActions}
           defaultFileViewActionId={defaultViewId}
           defaultSortActionId={
             view === "my-drive"
