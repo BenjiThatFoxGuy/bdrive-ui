@@ -106,11 +106,35 @@ export const DriveFileBrowser = memo(() => {
     if ((view === "search" || view === "recent") && search?.selectId && files) {
       const selectedFile = files.find((file) => file?.id === search?.selectId);
       if (selectedFile && !FileHelper.isDirectory(selectedFile)) {
-        const parentId = selectedFile.parentId as string | undefined;
-        if (parentId) {
-          // Show placeholder for parent folder - in future could resolve actual path
-          return [{ id: "parent", name: "Folder", path: "", isDir: true, chain: true }];
+        // We want to show the path to the parent folder of the selected file
+        const filePath = selectedFile.path; // e.g., "/Editing Assets/MMD/file.txt"
+        // Get the parent directory path
+        let parentPath = "";
+        if (filePath) {
+          // Remove trailing slash if present
+          if (filePath.endsWith("/")) {
+            filePath = filePath.slice(0, -1);
+          }
+          const lastSlash = filePath.lastIndexOf("/");
+          if (lastSlash >= 0) {
+            parentPath = filePath.slice(0, lastSlash);
+          }
+          // If the file is at the root, then parentPath will be empty string -> root
+          if (parentPath === "") {
+            parentPath = "/";
+          }
         }
+        // Now generate the chain for parentPath
+        if (parentPath === "") {
+          return [{ id: "root", name: "My Drive", path: "/", isDir: true, chain: true }];
+        }
+        return chainLinks(parentPath).map(([name, path], index) => ({
+          id: index + name,
+          name,
+          path,
+          isDir: true,
+          chain: true
+        }));
       }
     }
 

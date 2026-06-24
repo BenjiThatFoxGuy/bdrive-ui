@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { getRouteApi } from "@tanstack/react-router";
+import { getRouteApi, useNavigation } from "@tanstack/react-router";
 import {
   FbActions,
   FileBrowser,
@@ -51,6 +51,9 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
 
   const { breakpoint } = useBreakpoint(BREAKPOINTS);
   const session = useSession();
+  const { location } = useNavigation();
+  const pathname = location.pathname;
+  const isSharedList = pathname === "/shared";
 
   const params = {
     id,
@@ -79,6 +82,15 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
 
   // Determine if current user owns this share
   const isOwner = session?.user?.id === ownerId;
+
+  // Determine which actions to allow: hide Show in folder for non-owners and for the shared list view
+  let fileActionsToUse = sharefileActions;
+  if (!isOwner) {
+    fileActionsToUse = fileActionsToUse.filter(action => action.id !== CustomActions.ShowInFolder.id);
+  }
+  if (isSharedList) {
+    fileActionsToUse = fileActionsToUse.filter(action => action.id !== CustomActions.ShowInFolder.id);
+  }
 
   const folderChain = useMemo(() => {
     if (type === "file") {
@@ -117,18 +129,13 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
     };
   }, [id, path]);
 
-  // Show "Show in folder" only for NON-owners (recipients of shares)
-  // Owners don't need it for their own shares, and it's a security risk to show it
-  // to others viewing shares you shared with them
-  const fileActionsForShare = !isOwner ? sharefileActions : sharefileActions.filter(action => action.id !== CustomActions.ShowInFolder.id);
-
   return (
     <div className="size-full m-auto">
       <FileBrowser
         files={files}
         folderChain={folderChain}
         onFileAction={actionHandler()}
-        fileActions={fileActionsForShare}
+        fileActions={fileActionsToUse}
         breakpoint={breakpoint}
         defaultFileViewActionId={defaultViewId}
         disableEssentailFileActions={disabledActions}
