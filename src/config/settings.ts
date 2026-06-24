@@ -16,7 +16,8 @@ type SettingKeys =
   | "pageSize"
   | "splitFileSize"
   | "encryptFiles"
-  | "rcloneProxy";
+  | "rcloneProxy"
+  | "usePathNavigation";
 
 type SettingValue = string | number | boolean;
 
@@ -115,6 +116,15 @@ export const generalSettingsConfig: SettingFieldConfig<SettingValue>[] = [
     description: "Play Files directly from Rclone Webdav",
     placeholder: "http://localhost:8080",
     category: "other",
+  },
+  {
+    key: "usePathNavigation",
+    type: "switch",
+    label: "Use path navigation for 'Show in folder'",
+    description:
+      "When enabled, clicking 'Show in folder' navigates to the folder path instead of using the browse view. Disabled for compatibility.",
+    defaultValue: true,
+    category: "display",
   },
 ];
 

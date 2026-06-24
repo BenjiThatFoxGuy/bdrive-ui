@@ -20,7 +20,7 @@ import {
   sharedMediaUrl,
 } from "@/utils/common";
 import { getSortState, SortOrder } from "@/utils/defaults";
-import { useFileUploadStore, useModalStore } from "@/utils/stores";
+import { useFileUploadStore, useModalStore, useSettingsStore } from "@/utils/stores";
 import Share from "~icons/fluent/share-24-regular";
 import MaterialSymbolsFolder from "~icons/material-symbols/folder";
 import MaterialSymbolsFolderOpen from "~icons/material-symbols/folder-open-outline-rounded";
@@ -116,6 +116,8 @@ export const useFileAction = (
   const uploadOpen = useFileUploadStore((state) => state.actions.setUploadOpen);
 
   const navigate = useNavigate();
+  const { settings } = useSettingsStore();
+  const usePathNav = settings.usePathNavigation ?? true;
 
   const moveFiles = $api.useMutation("post", "/files/move");
 
@@ -243,20 +245,51 @@ export const useFileAction = (
         case CustomActions.ShowInFolder.id: {
           const file = data.state.selectedFiles[0];
           if (!file) break;
-          const parentId = file.parentId as string | undefined;
-          navigate(
-            parentId
-              ? {
-                  to: "/$view",
-                  params: { view: "browse" },
-                  search: { parentId, selectId: file.id },
-                }
-              : {
-                  to: "/$view",
-                  params: { view: "my-drive" },
-                  search: { selectId: file.id },
-                },
-          );
+          if (usePathNav && file.path) {
+            // Compute parent path from file.path
+            let p = file.path;
+            // Remove trailing slash if any
+            if (p.endsWith("/")) {
+              p = p.slice(0, -1);
+            }
+            const lastSlash = p.lastIndexOf("/");
+            let parentPath = "";
+            if (lastSlash >= 0) {
+              parentPath = p.slice(0, lastSlash);
+            }
+            // If we got empty string, treat as root
+            if (parentPath === "") {
+              parentPath = "/";
+            }
+            // Ensure leading slash
+            if (!parentPath.startsWith("/")) {
+              parentPath = "/" + parentPath;
+            }
+            navigate({
+              to: "/my-drive",
+              search: {
+                path: encodeURIComponent(parentPath),
+                // Keep selection to highlight the file in the file list
+                selectId: file.id,
+              },
+            });
+          } else {
+            // Fallback to original behavior
+            const parentId = file.parentId as string | undefined;
+            navigate(
+              parentId
+                ? {
+                    to: "/$view",
+                    params: { view: "browse" },
+                    search: { parentId, selectId: file.id },
+                  }
+                : {
+                    to: "/$view",
+                    params: { view: "my-drive" },
+                    search: { selectId: file.id },
+                  },
+            );
+          }
           break;
         }
 
@@ -319,7 +352,7 @@ export const useFileAction = (
           break;
       }
     };
-  }, [view, search?.path]);
+  }, [view, search?.path, usePathNav]);
 };
 
 export const useShareFileAction = (params: ShareListParams) => {
