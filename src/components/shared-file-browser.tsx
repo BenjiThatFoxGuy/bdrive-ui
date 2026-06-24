@@ -117,13 +117,18 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
     };
   }, [id, path]);
 
+  // Show "Show in folder" only for NON-owners (recipients of shares)
+  // Owners don't need it for their own shares, and it's a security risk to show it
+  // to others viewing shares you shared with them
+  const fileActionsForShare = !isOwner ? sharefileActions : sharefileActions.filter(action => action.id !== CustomActions.ShowInFolder.id);
+
   return (
     <div className="size-full m-auto">
       <FileBrowser
         files={files}
         folderChain={folderChain}
         onFileAction={actionHandler()}
-        fileActions={isOwner ? sharefileActions : sharefileActions.filter(action => action.id !== CustomActions.ShowInFolder.id)}
+        fileActions={fileActionsForShare}
         breakpoint={breakpoint}
         defaultFileViewActionId={defaultViewId}
         disableEssentailFileActions={disabledActions}
