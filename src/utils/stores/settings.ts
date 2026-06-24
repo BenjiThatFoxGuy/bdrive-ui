@@ -32,7 +32,7 @@ export const useSettingsStore = create<SettingsState>()(
         }),
     })),
     {
-      name: "teldrive-settings",
+      name: "bdrive-settings",
       merge: (persistedState: any, currentState) => {
         const defaultSettings = getSettingsValues();
         const mergedSettings = { ...defaultSettings };

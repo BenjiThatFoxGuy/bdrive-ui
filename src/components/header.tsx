@@ -115,7 +115,7 @@ export default memo(function Header({ auth }: { auth?: boolean }) {
           className="flex gap-2 items-center cursor-pointer"
         >
           <PhTelegramLogoFill className="size-6 text-inherit" />
-          <p className="text-headline-small hidden sm:block">Teldrive</p>
+          <p className="text-headline-small hidden sm:block">BDrive</p>
         </Link>
       </div>
       <div className="flex-1 flex justify-end items-center gap-4">
