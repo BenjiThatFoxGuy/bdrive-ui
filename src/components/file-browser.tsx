@@ -102,8 +102,26 @@ export const DriveFileBrowser = memo(() => {
       }));
     }
 
+    // For search and recent views, if we have a selected file, show path to its parent
+    if ((view === "search" || view === "recent") && search?.selectId && files) {
+      const selectedFile = files.find((file) => file?.id === search?.selectId);
+      if (selectedFile && !FileHelper.isDirectory(selectedFile)) {
+        const parentId = selectedFile.parentId as string | undefined;
+        if (parentId) {
+          // Show placeholder for parent folder - in future could resolve actual path
+          return [{ id: "parent", name: "Folder", path: "", isDir: true, chain: true }];
+        }
+      }
+    }
+
+    // For browse view, if we're viewing folder contents (have parentId)
+    if (view === "browse" && search?.parentId) {
+      // Show placeholder for current folder - in future could resolve actual path
+      return [{ id: "current", name: "Folder", path: "", isDir: true, chain: true }];
+    }
+
     return [];
-  }, [search?.path, view]);
+  }, [search?.path, search?.selectId, search?.parentId, view, files]);
 
   const scopedFileActions = useMemo(() => {
     // Show in search, recent, and browse views; hide in my-drive and shared views

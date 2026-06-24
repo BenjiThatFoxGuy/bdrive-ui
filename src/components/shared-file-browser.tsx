@@ -11,11 +11,13 @@ import {
 } from "@tw-material/file-browser";
 import type { StateSnapshot, VirtuosoGridHandle, VirtuosoHandle } from "react-virtuoso";
 import useBreakpoint from "use-breakpoint";
+import { useSession } from "@/utils/query-options";
 
 import { chainSharedLinks } from "@/utils/common";
 import { BREAKPOINTS, defaultViewId } from "@/utils/defaults";
 import { shareQueries } from "@/utils/query-options";
 import { sharefileActions, useShareFileAction } from "@/hooks/use-file-action";
+import { CustomActions } from "@/hooks/use-file-action";
 import { useModalStore } from "@/utils/stores";
 import PreviewModal from "./modals/preview";
 import { $api } from "@/utils/api";
@@ -48,6 +50,7 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   const listRef = useRef<VirtuosoHandle | VirtuosoGridHandle>(null);
 
   const { breakpoint } = useBreakpoint(BREAKPOINTS);
+  const session = useSession();
 
   const params = {
     id,
@@ -56,7 +59,7 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   };
 
   const {
-    data: { name, type },
+    data: { name, type, ownerId },
   } = $api.useSuspenseQuery("get", "/shares/{id}", {
     params: {
       path: {
@@ -73,6 +76,9 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   } = useSuspenseInfiniteQuery(shareQueries.list(params));
 
   const actionHandler = useShareFileAction(params);
+
+  // Determine if current user owns this share
+  const isOwner = session?.user?.id === ownerId;
 
   const folderChain = useMemo(() => {
     if (type === "file") {
@@ -117,7 +123,7 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
         files={files}
         folderChain={folderChain}
         onFileAction={actionHandler()}
-        fileActions={sharefileActions}
+        fileActions={isOwner ? sharefileActions : sharefileActions.filter(action => action.id !== CustomActions.ShowInFolder.id)}
         breakpoint={breakpoint}
         defaultFileViewActionId={defaultViewId}
         disableEssentailFileActions={disabledActions}
