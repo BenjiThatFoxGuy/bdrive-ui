@@ -25,7 +25,7 @@ export const InfoTab = memo(() => {
                   <span className="text-base font-semibold">Development</span>
                 ) : (
                   <a
-                    href={`https://github.com/tgdrive/teldrive-ui/commits/${uiVersion}`}
+                    href={`https://github.com/BenjiThatFoxGuy/bdrive-ui/commits/${uiVersion}`}
                     rel="noopener noreferrer"
                     target="_blank"
                     className="text-base font-semibold text-primary hover:underline decoration-2 underline-offset-4"
@@ -58,7 +58,7 @@ export const InfoTab = memo(() => {
                     </span>
                     {key === "version" && val ? (
                       <a
-                        href={`https://github.com/tgdrive/teldrive/commits/${val}`}
+                        href={`https://github.com/BenjiThatFoxGuy/bdrive/commits/${val}`}
                         rel="noopener noreferrer"
                         target="_blank"
                         className="text-base font-semibold text-primary hover:underline decoration-2 underline-offset-4"
