@@ -6,6 +6,7 @@ import {
   FileBrowser,
   type FileBrowserHandle,
   FileContextMenu,
+  FileHelper,
   FileList,
   FileNavbar,
   FileToolbar,
@@ -105,9 +106,10 @@ export const DriveFileBrowser = memo(() => {
     // For search and recent views, if we have a selected file, show path to its parent
     if ((view === "search" || view === "recent") && search?.selectId && files) {
       const selectedFile = files.find((file) => file?.id === search?.selectId);
-      if (selectedFile && !FileHelper.isDirectory(selectedFile)) {
+      const isDir: boolean = !!selectedFile && FileHelper.isDirectory(selectedFile);
+      if (selectedFile && !isDir) {
         // We want to show the path to the parent folder of the selected file
-        const filePath = selectedFile.path; // e.g., "/Editing Assets/MMD/file.txt"
+        let filePath = selectedFile.path; // e.g., "/Editing Assets/MMD/file.txt"
         // Get the parent directory path
         let parentPath = "";
         if (filePath) {

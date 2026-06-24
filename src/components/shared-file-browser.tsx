@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { getRouteApi, useNavigation } from "@tanstack/react-router";
+import { getRouteApi, useLocation } from "@tanstack/react-router";
 import {
   FbActions,
   FileBrowser,
@@ -50,8 +50,8 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   const listRef = useRef<VirtuosoHandle | VirtuosoGridHandle>(null);
 
   const { breakpoint } = useBreakpoint(BREAKPOINTS);
-  const session = useSession();
-  const { location } = useNavigation();
+  const [session] = useSession();
+  const location = useLocation();
   const pathname = location.pathname;
   const isSharedList = pathname === "/shared";
 
@@ -62,7 +62,7 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   };
 
   const {
-    data: { name, type, ownerId },
+    data: { name, type, userId: ownerId },
   } = $api.useSuspenseQuery("get", "/shares/{id}", {
     params: {
       path: {
@@ -81,7 +81,7 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   const actionHandler = useShareFileAction(params);
 
   // Determine if current user owns this share
-  const isOwner = session?.user?.id === ownerId;
+  const isOwner = session?.userId === ownerId;
 
   // Determine which actions to allow: hide Show in folder for non-owners and for the shared list view
   let fileActionsToUse = sharefileActions;

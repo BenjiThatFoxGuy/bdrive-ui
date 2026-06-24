@@ -266,9 +266,10 @@ export const useFileAction = (
               parentPath = "/" + parentPath;
             }
             navigate({
-              to: "/my-drive",
+              to: "/$view",
+              params: { view: "my-drive" },
               search: {
-                path: encodeURIComponent(parentPath),
+                path: parentPath,
                 // Keep selection to highlight the file in the file list
                 selectId: file.id,
               },
