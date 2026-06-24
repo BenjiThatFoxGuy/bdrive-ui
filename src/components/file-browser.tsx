@@ -106,7 +106,8 @@ export const DriveFileBrowser = memo(() => {
   }, [search?.path, view]);
 
   const scopedFileActions = useMemo(() => {
-    if (view === "search") return fileActions;
+    // Show in search, recent, and browse views; hide in my-drive and shared views
+    if (view === "search" || view === "recent" || view === "browse") return fileActions;
     return fileActions.filter((action) => action.id !== CustomActions.ShowInFolder.id);
   }, [view]);
 
