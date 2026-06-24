@@ -1,4 +1,3 @@
-import md5 from "md5";
 import pLimit from "p-limit";
 
 
@@ -6,6 +5,34 @@ import type { components } from "@/lib/api";
 import { fetchClient } from "@/utils/api";
 import { formatTime, zeroPad } from "@/utils/common";
 import type { UploadParams } from "./types";
+
+// MD5 hash function resolver - loads implementation based on environment
+let md5HashResolver: (() => Promise<(input: string) => string>) | null = null;
+
+async function getMd5Hash(): Promise<(input: string) => string> {
+  if (md5HashResolver) {
+    return md5HashResolver();
+  }
+
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined') {
+      // Browser environment - use the md5 package
+      import('md5').then((module) => {
+        const hashFn = module.default;
+        md5HashResolver = () => Promise.resolve(hashFn);
+        resolve(hashFn);
+      });
+    } else {
+      // Node.js environment (for build/SSR) - use built-in crypto
+      import('crypto').then(({ createHash }) => {
+        const hashFn = (input: string) =>
+          createHash('md5').update(input, 'utf8').digest('hex');
+        md5HashResolver = () => Promise.resolve(hashFn);
+        resolve(hashFn);
+      });
+    }
+  });
+}
 
 
 function generateUUID(): string {
@@ -97,7 +124,8 @@ export const uploadFile = async (
 
   const limit = pLimit(concurrency);
 
-  const uploadId = md5(
+  const hashFn = await getMd5Hash();
+  const uploadId = hashFn(
     `${path}/${fileName}${file.size.toString()}${formatTime(file.lastModified)}${userId}`,
   );
 
@@ -140,8 +168,9 @@ export const uploadFile = async (
 
           const fileBlob = totalParts > 1 ? file.slice(start, end) : file;
 
+          const hashFn = await getMd5Hash();
           const partName = randomChunking
-            ? md5(generateUUID())
+            ? hashFn(generateUUID())
             : totalParts > 1
               ? `${fileName}.part.${zeroPad(partIndex + 1, 3)}`
               : fileName;
