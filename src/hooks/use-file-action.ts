@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 
 import {
   downloadFiles,
+  downloadFilesAsZip,
   mediaUrl,
   navigateToExternalUrl,
   sharedMediaUrl,
@@ -25,6 +26,7 @@ import { useFileUploadStore, useModalStore, useSettingsStore } from "@/utils/sto
 import Share from "~icons/fluent/share-24-regular";
 import MaterialSymbolsFolder from "~icons/material-symbols/folder";
 import MaterialSymbolsFolderOpen from "~icons/material-symbols/folder-open-outline-rounded";
+import MaterialSymbolsFolderZip from "~icons/material-symbols/folder-zip-outline-rounded";
 import { useNavigate } from "@tanstack/react-router";
 import { $api } from "@/utils/api";
 
@@ -90,6 +92,17 @@ export const CustomActions = {
       name: "Show in Folder",
       contextMenu: true,
       icon: MaterialSymbolsFolderOpen,
+    },
+  } as const),
+
+  DownloadAsZip: defineFileAction({
+    id: "download_as_zip",
+    requiresSelection: true,
+    fileFilter: (file) => !FileHelper.isDirectory(file),
+    button: {
+      name: "Download as Zip",
+      contextMenu: true,
+      icon: MaterialSymbolsFolderZip,
     },
   } as const),
 };
@@ -166,12 +179,32 @@ export const useFileAction = (
         }
         case FbActions.DownloadFiles.id: {
           const { selectedFiles } = data.state;
-          const urls = selectedFiles
-            .filter((file) => !FileHelper.isDirectory(file))
-            .map(({ id, name }) =>
-              mediaUrl(id, name, search?.path || "", session.hash, true),
-            );
+          const filesToDownload = selectedFiles.filter(
+            (file) => !FileHelper.isDirectory(file),
+          );
+          const urls = filesToDownload.map(({ id, name }) =>
+            mediaUrl(id, name, search?.path || "", session.hash, true),
+          );
           downloadFiles(urls);
+          if (filesToDownload.length > 1) {
+            toast(
+              "Your browser may block downloads after the first one. Check for a blocked-download notice and allow it to get the rest.",
+              { duration: 6000 },
+            );
+          }
+          break;
+        }
+        case CustomActions.DownloadAsZip.id: {
+          const { selectedFilesForAction } = data.state;
+          const files = selectedFilesForAction.map(({ id, name }) => ({
+            url: mediaUrl(id, name, search?.path || "", session.hash, true),
+            name,
+          }));
+          toast.promise(downloadFilesAsZip(files, "download.zip"), {
+            loading: "Zipping files...",
+            success: "Download starting",
+            error: "Failed to create zip",
+          });
           break;
         }
         case CustomActions.OpenInVLCPlayer.id: {
@@ -386,10 +419,32 @@ export const useShareFileAction = (params: ShareListParams) => {
         }
         case FbActions.DownloadFiles.id: {
           const { selectedFiles } = data.state;
-          const urls = selectedFiles
-            .filter((file) => !FileHelper.isDirectory(file))
-            .map(({ id, name }) => sharedMediaUrl(params.id, id, name, true));
+          const filesToDownload = selectedFiles.filter(
+            (file) => !FileHelper.isDirectory(file),
+          );
+          const urls = filesToDownload.map(({ id, name }) =>
+            sharedMediaUrl(params.id, id, name, true),
+          );
           downloadFiles(urls);
+          if (filesToDownload.length > 1) {
+            toast(
+              "Your browser may block downloads after the first one. Check for a blocked-download notice and allow it to get the rest.",
+              { duration: 6000 },
+            );
+          }
+          break;
+        }
+        case CustomActions.DownloadAsZip.id: {
+          const { selectedFilesForAction } = data.state;
+          const files = selectedFilesForAction.map(({ id, name }) => ({
+            url: sharedMediaUrl(params.id, id, name, true),
+            name,
+          }));
+          toast.promise(downloadFilesAsZip(files, "download.zip"), {
+            loading: "Zipping files...",
+            success: "Download starting",
+            error: "Failed to create zip",
+          });
           break;
         }
         case CustomActions.OpenInVLCPlayer.id: {

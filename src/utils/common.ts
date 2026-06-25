@@ -1,5 +1,6 @@
 import type { Session } from "@/types";
 import { partial } from "filesize";
+import JSZip from "jszip";
 import { useSettingsStore } from "./stores/settings";
 
 export const navigateToExternalUrl = (url: string, shouldOpenNewTab = true) => {
@@ -10,10 +11,10 @@ export const navigateToExternalUrl = (url: string, shouldOpenNewTab = true) => {
   }
 };
 
-const triggerDownload = (url: string) => {
+const triggerDownload = (url: string, name = "") => {
   const a = document.createElement("a");
   a.href = url;
-  a.download = "";
+  a.download = name;
   a.style.display = "none";
   document.body.appendChild(a);
   a.click();
@@ -24,11 +25,36 @@ const triggerDownload = (url: string) => {
 // firing url after url via location.href only ever downloads the last one.
 // Triggering each through its own <a download> click avoids that, but most
 // browsers still silently drop downloads fired back-to-back, so they're
-// staggered.
+// staggered. Note: Firefox and Safari both treat anything past the first as
+// an "automatic" download and silently block it until the user grants the
+// site one-time permission to download multiple files - that's a browser
+// security policy we can't bypass from the page.
 export const downloadFiles = (urls: string[], delayMs = 300) => {
   urls.forEach((url, index) => {
     setTimeout(() => triggerDownload(url), index * delayMs);
   });
+};
+
+export const downloadFilesAsZip = async (
+  files: Array<{ url: string; name: string }>,
+  zipName: string,
+) => {
+  const zip = new JSZip();
+
+  await Promise.all(
+    files.map(async ({ url, name }) => {
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch ${name}: ${res.status}`);
+      }
+      zip.file(name, await res.blob());
+    }),
+  );
+
+  const blob = await zip.generateAsync({ type: "blob" });
+  const blobUrl = URL.createObjectURL(blob);
+  triggerDownload(blobUrl, zipName);
+  URL.revokeObjectURL(blobUrl);
 };
 
 export const chainLinks = (path: string) => {
