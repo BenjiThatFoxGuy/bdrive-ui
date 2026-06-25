@@ -771,6 +771,11 @@ export interface components {
              */
             encrypted?: boolean;
             /**
+             * @description Starred status
+             * @example false
+             */
+            starred?: boolean;
+            /**
              * @description BLAKE3 tree hash for integrity checking
              * @example d41d8cd98f00b204e9800998ecf8427e
              */
@@ -942,6 +947,8 @@ export interface components {
             parts?: components["schemas"]["Part"][];
             /** @description Indicates if the file is encrypted */
             encrypted?: boolean;
+            /** @description Indicates if the file is starred */
+            starred?: boolean;
             /**
              * Format: int64
              * @description File size in bytes
@@ -1230,6 +1237,8 @@ export interface components {
         "FileQuery.shared": boolean;
         /** @description Sort field */
         "FileQuery.sort": "name" | "updatedAt" | "size" | "id";
+        /** @description Show only starred files */
+        "FileQuery.starred": boolean;
         /** @description File Status */
         "FileQuery.status": "active" | "pending_deletion";
         /** @description File type */
@@ -1504,6 +1513,8 @@ export interface operations {
                 deepSearch?: components["parameters"]["FileQuery.deepSearch"];
                 /** @description Show shared files */
                 shared?: components["parameters"]["FileQuery.shared"];
+                /** @description Show only starred files */
+                starred?: components["parameters"]["FileQuery.starred"];
                 /** @description Parent folder ID */
                 parentId?: components["parameters"]["FileQuery.parentId"];
                 /** @description File category */

@@ -12,6 +12,7 @@ import {
 } from "@tw-material/file-browser";
 import IconFlatColorIconsVlc from "~icons/flat-color-icons/vlc";
 import IconPotPlayerIcon from "~icons/material-symbols/play-circle-rounded";
+import IconMaterialSymbolsStar from "~icons/material-symbols/star-rounded";
 import toast from "react-hot-toast";
 
 import {
@@ -106,6 +107,16 @@ export const CustomActions = {
       icon: MaterialSymbolsFolderZip,
     },
   } as const),
+
+  ToggleStar: defineFileAction({
+    id: "toggle_star",
+    requiresSelection: true,
+    button: {
+      name: "Star/Unstar",
+      contextMenu: true,
+      icon: IconMaterialSymbolsStar,
+    },
+  } as const),
 };
 
 type FbActionFullUnion =
@@ -135,6 +146,8 @@ export const useFileAction = (
   const usePathNav = settings.usePathNavigation ?? true;
 
   const moveFiles = $api.useMutation("post", "/files/move");
+
+  const toggleStar = $api.useMutation("patch", "/files/{id}");
 
   return useCallback(() => {
     return async (data: MapFileActionsToData<FbActionFullUnion>) => {
@@ -203,6 +216,24 @@ export const useFileAction = (
             success: "Download starting",
             error: "Failed to create zip",
           });
+          break;
+        }
+        case CustomActions.ToggleStar.id: {
+          const { selectedFilesForAction } = data.state;
+          Promise.all(
+            selectedFilesForAction.map((file) =>
+              toggleStar.mutateAsync({
+                params: { path: { id: file.id } },
+                body: { starred: !file.starred },
+              }),
+            ),
+          )
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ["Files_list"] });
+            })
+            .catch(() => {
+              toast.error("Failed to update starred files");
+            });
           break;
         }
         case CustomActions.OpenInVLCPlayer.id: {

@@ -18,6 +18,7 @@ export type SingleFile = {
   parentId: string;
   id: string;
   encrypted?: boolean;
+  starred?: boolean;
   path?: string;
 };
 
@@ -67,7 +68,7 @@ export type UserSession = {
   current: boolean;
 };
 
-export type BrowseView = "my-drive" | "search" | "recent" | "browse" | "shared";
+export type BrowseView = "my-drive" | "search" | "recent" | "browse" | "shared" | "starred";
 
 export type FileListParams = {
   view: BrowseView;

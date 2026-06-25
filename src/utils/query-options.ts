@@ -121,6 +121,9 @@ const fetchFiles =
     } else if (view === "shared") {
       query.operation = "find";
       query.shared = true;
+    } else if (view === "starred") {
+      query.operation = "find";
+      query.starred = true;
     }
 
     return (
@@ -144,6 +147,7 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
         size: item.size ? Number(item.size) : 0,
         modDate: item.updatedAt,
         isDir: true,
+        starred: item.starred,
         parentId: item.parentId,
         path: item.path,
       };
@@ -175,6 +179,7 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
       thumbnailUrl,
       modDate: item.updatedAt,
       isEncrypted: item.encrypted,
+      starred: item.starred,
       parentId: item.parentId,
       path: item.path,
     };
