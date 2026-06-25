@@ -100,7 +100,6 @@ export const CustomActions = {
   DownloadAsZip: defineFileAction({
     id: "download_as_zip",
     requiresSelection: true,
-    fileFilter: (file) => !FileHelper.isDirectory(file),
     button: {
       name: "Download as Zip",
       contextMenu: true,

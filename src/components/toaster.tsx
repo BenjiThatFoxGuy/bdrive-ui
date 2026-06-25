@@ -5,14 +5,21 @@ import IconMaterialSymbolsErrorRounded from "~icons/material-symbols/error-round
 import { Button, Spinner } from "@tw-material/react";
 import clsx from "clsx";
 
+// Toaster styling must match upload modal (src/components/upload/index.tsx) for UI consistency:
+// - bg-surface-container-high (background)
+// - border-outline-variant/10 (border color)
+// - shadow-2xl (elevation)
+// - rounded-xl (border radius)
+// - text-on-surface (text color)
+// When updating toasts, maintain this style throughout the app.
 export function Toaster() {
   return (
     <HotToaster position="bottom-right">
       {(t) => (
         <div
           className={clsx(
-            "flex items-center gap-3 pl-4 pr-2 py-2 min-h-[48px] rounded-lg shadow-lg transition-all duration-300 ease-in-out",
-            "bg-inverse-surface text-inverse-on-surface",
+            "flex items-center gap-3 pl-4 pr-2 py-2 min-h-[48px] border rounded-xl shadow-2xl transition-all duration-300 ease-in-out",
+            "bg-surface-container-high border-outline-variant/10 text-on-surface",
             t.visible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-2 scale-95",
           )}
         >
@@ -33,7 +40,7 @@ export function Toaster() {
               isIconOnly
               variant="text"
               size="sm"
-              className="text-inverse-primary hover:bg-inverse-on-surface/10 min-w-10"
+              className="text-on-surface-variant hover:bg-outline-variant/10 min-w-10"
               onPress={() => toast.dismiss(t.id)}
             >
               <IconMaterialSymbolsClose className="size-5" />
