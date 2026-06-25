@@ -65,17 +65,25 @@ export const shareQueries = {
   list: (params: ShareListParams) =>
     infiniteQueryOptions({
       queryKey: ["Shares_listFiles", params],
-      queryFn: async ({ signal }) =>
-        (
+      queryFn: async ({ pageParam, signal }) => {
+        const query: Record<string, unknown> = {
+          ...(params.path ? { path: params.path } : {}),
+          ...(params.sort ? { sort: params.sort } : {}),
+          ...(params.order ? { order: params.order } : {}),
+          ...(params.limit ? { limit: params.limit } : {}),
+          ...(pageParam ? { page: pageParam } : {}),
+        };
+        return (
           await fetchClient.GET("/shares/{id}/files", {
             params: {
               path: { id: params.id },
-              query: params.path ? { path: params.path } : {},
+              query,
             },
             signal,
             headers: params.password ? { Authorization: btoa(`:${params.password}`) } : {},
           })
-        ).data,
+        ).data;
+      },
       initialPageParam: 1,
       getNextPageParam: (lastPage, _) =>
         lastPage?.meta.currentPage! + 1 > lastPage?.meta.totalPages!

@@ -81,6 +81,10 @@ export type ShareListParams = {
   id: string;
   path?: string;
   password?: string;
+  sort?: string;
+  order?: string;
+  limit?: number;
+  cursor?: string;
 };
 
 export type AccountStats = {
