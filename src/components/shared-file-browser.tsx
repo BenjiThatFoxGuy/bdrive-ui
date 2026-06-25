@@ -20,6 +20,7 @@ import { sharefileActions, useShareFileAction } from "@/hooks/use-file-action";
 import { CustomActions } from "@/hooks/use-file-action";
 import { useModalStore } from "@/utils/stores";
 import PreviewModal from "./modals/preview";
+import { FileToolbarMenu } from "./file-toolbar-menu";
 import { $api } from "@/utils/api";
 
 let firstRender = true;
@@ -143,7 +144,10 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
         disableEssentailFileActions={disabledActions}
       >
         <FileNavbar breakpoint={breakpoint} />
-        <FileToolbar className="pt-2" />
+        <div className="flex items-center gap-1">
+          <FileToolbar className="pt-2" />
+          <FileToolbarMenu onFileAction={actionHandler()} zipDownloadEnabled={zipDownloadEnabled} />
+        </div>
         <FileList
           hasNextPage={hasNextPage}
           isNextPageLoading={isFetchingNextPage}
