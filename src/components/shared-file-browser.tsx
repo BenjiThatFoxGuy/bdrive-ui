@@ -85,12 +85,9 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
 
   const { zipDownloadEnabled } = useServerConfig();
 
-  // Determine which actions to allow: hide Show in folder for non-owners and for the shared list view
+  // Determine which actions to allow: hide Show in folder for non-owners
   let fileActionsToUse = sharefileActions;
   if (!isOwner) {
-    fileActionsToUse = fileActionsToUse.filter(action => action.id !== CustomActions.ShowInFolder.id);
-  }
-  if (isSharedList) {
     fileActionsToUse = fileActionsToUse.filter(action => action.id !== CustomActions.ShowInFolder.id);
   }
   if (!zipDownloadEnabled) {
