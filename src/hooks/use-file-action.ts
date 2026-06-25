@@ -415,6 +415,8 @@ export const useFileAction = (
 export const useShareFileAction = (params: ShareListParams) => {
   const actions = useModalStore((state) => state.actions);
   const navigate = useNavigate();
+  const { settings } = useSettingsStore();
+  const usePathNav = settings.usePathNavigation ?? true;
   return useCallback(() => {
     return async (data: MapFileActionsToData<FbActionFullUnion>) => {
       switch (data.id) {
@@ -502,7 +504,45 @@ export const useShareFileAction = (params: ShareListParams) => {
           navigator.clipboard.writeText(clipboardText);
           break;
         }
-
+        case CustomActions.ShowInFolder.id: {
+          const file = data.state.selectedFiles[0];
+          if (!file) break;
+          if (usePathNav && file.path) {
+            // Compute parent path from file.path
+            let p = file.path;
+            // Remove trailing slash if any
+            if (p.endsWith("/")) {
+              p = p.slice(0, -1);
+            }
+            const lastSlash = p.lastIndexOf("/");
+            let parentPath = "";
+            if (lastSlash >= 0) {
+              parentPath = p.slice(0, lastSlash);
+            }
+            // If we got empty string, treat as root
+            if (parentPath === "") {
+              parentPath = "/";
+            }
+            // Ensure leading slash
+            if (!parentPath.startsWith("/")) {
+              parentPath = "/" + parentPath;
+            }
+            navigate({
+              to: "/share/$id",
+              params: {
+                id: params.id,
+              },
+              search: {
+                path: parentPath,
+              },
+            });
+          } else {
+            // Fallback: do nothing (could also use parentId fallback if desired)
+            // For simplicity, we just break.
+            break;
+          }
+          break;
+        }
         case FbActions.EnableListView.id:
         case FbActions.EnableGridView.id:
         case FbActions.EnableTileView.id: {
