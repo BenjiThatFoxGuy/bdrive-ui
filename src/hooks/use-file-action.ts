@@ -15,6 +15,7 @@ import IconPotPlayerIcon from "~icons/material-symbols/play-circle-rounded";
 import toast from "react-hot-toast";
 
 import {
+  downloadFiles,
   mediaUrl,
   navigateToExternalUrl,
   sharedMediaUrl,
@@ -165,19 +166,12 @@ export const useFileAction = (
         }
         case FbActions.DownloadFiles.id: {
           const { selectedFiles } = data.state;
-          for (const file of selectedFiles) {
-            if (!FileHelper.isDirectory(file)) {
-              const { id, name } = file;
-              const url = mediaUrl(
-                id,
-                name,
-                search?.path || "",
-                session.hash,
-                true,
-              );
-              navigateToExternalUrl(url, false);
-            }
-          }
+          const urls = selectedFiles
+            .filter((file) => !FileHelper.isDirectory(file))
+            .map(({ id, name }) =>
+              mediaUrl(id, name, search?.path || "", session.hash, true),
+            );
+          downloadFiles(urls);
           break;
         }
         case CustomActions.OpenInVLCPlayer.id: {
@@ -392,13 +386,10 @@ export const useShareFileAction = (params: ShareListParams) => {
         }
         case FbActions.DownloadFiles.id: {
           const { selectedFiles } = data.state;
-          for (const file of selectedFiles) {
-            if (!FileHelper.isDirectory(file)) {
-              const { id, name } = file;
-              const url = sharedMediaUrl(params.id, id, name, true);
-              navigateToExternalUrl(url, false);
-            }
-          }
+          const urls = selectedFiles
+            .filter((file) => !FileHelper.isDirectory(file))
+            .map(({ id, name }) => sharedMediaUrl(params.id, id, name, true));
+          downloadFiles(urls);
           break;
         }
         case CustomActions.OpenInVLCPlayer.id: {

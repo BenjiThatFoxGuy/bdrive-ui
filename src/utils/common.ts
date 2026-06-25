@@ -10,6 +10,27 @@ export const navigateToExternalUrl = (url: string, shouldOpenNewTab = true) => {
   }
 };
 
+const triggerDownload = (url: string) => {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+
+// Browsers cancel an in-flight navigation as soon as another one starts, so
+// firing url after url via location.href only ever downloads the last one.
+// Triggering each through its own <a download> click avoids that, but most
+// browsers still silently drop downloads fired back-to-back, so they're
+// staggered.
+export const downloadFiles = (urls: string[], delayMs = 300) => {
+  urls.forEach((url, index) => {
+    setTimeout(() => triggerDownload(url), index * delayMs);
+  });
+};
+
 export const chainLinks = (path: string) => {
   let pathsoFar = "/";
   const chains = [["My Drive", pathsoFar]] as Array<[string, string]>;
