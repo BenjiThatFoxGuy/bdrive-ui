@@ -17,6 +17,7 @@ import toast from "react-hot-toast";
 import {
   downloadFiles,
   downloadFilesAsZip,
+  downloadSharedFilesAsZip,
   mediaUrl,
   navigateToExternalUrl,
   sharedMediaUrl,
@@ -196,11 +197,8 @@ export const useFileAction = (
         }
         case CustomActions.DownloadAsZip.id: {
           const { selectedFilesForAction } = data.state;
-          const files = selectedFilesForAction.map(({ id, name }) => ({
-            url: mediaUrl(id, name, search?.path || "", session.hash, true),
-            name,
-          }));
-          toast.promise(downloadFilesAsZip(files, "download.zip"), {
+          const ids = selectedFilesForAction.map(({ id }) => id);
+          toast.promise(downloadFilesAsZip(ids), {
             loading: "Zipping files...",
             success: "Download starting",
             error: "Failed to create zip",
@@ -436,15 +434,15 @@ export const useShareFileAction = (params: ShareListParams) => {
         }
         case CustomActions.DownloadAsZip.id: {
           const { selectedFilesForAction } = data.state;
-          const files = selectedFilesForAction.map(({ id, name }) => ({
-            url: sharedMediaUrl(params.id, id, name, true),
-            name,
-          }));
-          toast.promise(downloadFilesAsZip(files, "download.zip"), {
-            loading: "Zipping files...",
-            success: "Download starting",
-            error: "Failed to create zip",
-          });
+          const ids = selectedFilesForAction.map(({ id }) => id);
+          toast.promise(
+            downloadSharedFilesAsZip(params.id, params.password, ids),
+            {
+              loading: "Zipping files...",
+              success: "Download starting",
+              error: "Failed to create zip",
+            },
+          );
           break;
         }
         case CustomActions.OpenInVLCPlayer.id: {

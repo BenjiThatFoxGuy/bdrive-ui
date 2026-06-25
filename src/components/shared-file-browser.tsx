@@ -11,7 +11,7 @@ import {
 } from "@tw-material/file-browser";
 import type { StateSnapshot, VirtuosoGridHandle, VirtuosoHandle } from "react-virtuoso";
 import useBreakpoint from "use-breakpoint";
-import { useSession } from "@/utils/query-options";
+import { useServerConfig, useSession } from "@/utils/query-options";
 
 import { chainSharedLinks } from "@/utils/common";
 import { BREAKPOINTS, defaultViewId } from "@/utils/defaults";
@@ -83,6 +83,8 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   // Determine if current user owns this share
   const isOwner = session?.userId === ownerId;
 
+  const { zipDownloadEnabled } = useServerConfig();
+
   // Determine which actions to allow: hide Show in folder for non-owners and for the shared list view
   let fileActionsToUse = sharefileActions;
   if (!isOwner) {
@@ -90,6 +92,9 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   }
   if (isSharedList) {
     fileActionsToUse = fileActionsToUse.filter(action => action.id !== CustomActions.ShowInFolder.id);
+  }
+  if (!zipDownloadEnabled) {
+    fileActionsToUse = fileActionsToUse.filter(action => action.id !== CustomActions.DownloadAsZip.id);
   }
 
   const folderChain = useMemo(() => {

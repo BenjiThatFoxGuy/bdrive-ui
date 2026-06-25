@@ -1,6 +1,6 @@
 import type { Session } from "@/types";
 import { partial } from "filesize";
-import JSZip from "jszip";
+import { fetchClient } from "./api";
 import { useSettingsStore } from "./stores/settings";
 
 export const navigateToExternalUrl = (url: string, shouldOpenNewTab = true) => {
@@ -35,24 +35,37 @@ export const downloadFiles = (urls: string[], delayMs = 300) => {
   });
 };
 
-export const downloadFilesAsZip = async (
-  files: Array<{ url: string; name: string }>,
-  zipName: string,
+export const downloadFilesAsZip = async (ids: string[], zipName = "download.zip") => {
+  const { data, response } = await fetchClient.POST("/files/zip", {
+    body: { ids },
+    parseAs: "blob",
+  });
+  if (!data) {
+    throw new Error(`Failed to create zip: ${response.status}`);
+  }
+
+  const blobUrl = URL.createObjectURL(data as Blob);
+  triggerDownload(blobUrl, zipName);
+  URL.revokeObjectURL(blobUrl);
+};
+
+export const downloadSharedFilesAsZip = async (
+  shareId: string,
+  password: string | undefined,
+  ids: string[],
+  zipName = "download.zip",
 ) => {
-  const zip = new JSZip();
+  const { data, response } = await fetchClient.POST("/shares/{id}/zip", {
+    params: { path: { id: shareId } },
+    body: { ids },
+    headers: password ? { Authorization: btoa(`:${password}`) } : {},
+    parseAs: "blob",
+  });
+  if (!data) {
+    throw new Error(`Failed to create zip: ${response.status}`);
+  }
 
-  await Promise.all(
-    files.map(async ({ url, name }) => {
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`Failed to fetch ${name}: ${res.status}`);
-      }
-      zip.file(name, await res.blob());
-    }),
-  );
-
-  const blob = await zip.generateAsync({ type: "blob" });
-  const blobUrl = URL.createObjectURL(blob);
+  const blobUrl = URL.createObjectURL(data as Blob);
   triggerDownload(blobUrl, zipName);
   URL.revokeObjectURL(blobUrl);
 };

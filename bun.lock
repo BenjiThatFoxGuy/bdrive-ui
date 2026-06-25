@@ -22,7 +22,6 @@
         "filesize": "^10.1.6",
         "framer-motion": "^11.14.3",
         "immer": "^10.1.1",
-        "jszip": "^3.10.1",
         "libphonenumber-js": "^1.11.16",
         "lodash.debounce": "^4.0.8",
         "md5": "^2.3.0",

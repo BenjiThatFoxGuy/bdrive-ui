@@ -28,6 +28,22 @@ export const useSession = () => {
   return [data ?? null, status, refetch] as const;
 };
 
+export const serverConfigOptions = queryOptions({
+  queryKey: ["server-config"],
+  queryFn: async ({ signal }) => {
+    const res = await fetchClient.GET("/config", { signal });
+    return res.data ?? null;
+  },
+  staleTime: Infinity,
+});
+
+export const useServerConfig = () => {
+  const { data } = useQuery(serverConfigOptions);
+  // Unset/unreachable server config defaults to enabled, matching the
+  // backend's own default for files.enable-zip-download.
+  return { zipDownloadEnabled: data?.zipDownloadEnabled ?? true };
+};
+
 export const fileQueries = {
   list: (params: FileListParams, sessionHash?: string) =>
     infiniteQueryOptions({

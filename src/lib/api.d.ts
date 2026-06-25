@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get public server configuration */
+        get: operations["Config_config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events": {
         parameters: {
             query?: never;
@@ -81,9 +98,29 @@ export interface paths {
         };
         /**
          * Get events
-         * @description Get events
+         * @description Get events (polling)
          */
         get: operations["Events_getEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Server-Sent Events stream
+         * @description Real-time event stream using Server-Sent Events (SSE). Events are filtered by authenticated user. Optional interval parameter for heartbeat configuration.
+         */
+        get: operations["Events_eventsStream"];
         put?: never;
         post?: never;
         delete?: never;
@@ -178,6 +215,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/files/zip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Download multiple files bundled as a zip archive */
+        post: operations["Files_downloadZip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/files/{id}": {
         parameters: {
             query?: never;
@@ -207,23 +261,6 @@ export interface paths {
         put?: never;
         /** Copy file */
         post: operations["Files_copy"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/files/{id}/parts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update file parts */
-        put: operations["Files_updateParts"];
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -329,6 +366,23 @@ export interface paths {
         put?: never;
         /** Unlock share */
         post: operations["Shares_unlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shares/{id}/zip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Download multiple shared files bundled as a zip archive */
+        post: operations["Shares_downloadZip"];
         delete?: never;
         options?: never;
         head?: never;
@@ -662,6 +716,11 @@ export interface components {
              */
             readonly id?: string;
             /**
+             * @description Upload session ID (for multi-part uploads)
+             * @example upload-abc-123
+             */
+            uploadId?: string;
+            /**
              * @description File name
              * @example document.pdf
              */
@@ -711,6 +770,11 @@ export interface components {
              * @example false
              */
             encrypted?: boolean;
+            /**
+             * @description BLAKE3 tree hash for integrity checking
+             * @example d41d8cd98f00b204e9800998ecf8427e
+             */
+            hash?: string;
             /**
              * Format: date-time
              * @description Last update time
@@ -780,40 +844,6 @@ export interface components {
             destinationParent: string;
             /** @description Destination file or folder name */
             destinationName?: string;
-        };
-        /** @description File parts update request */
-        FilePartsUpdate: {
-            /**
-             * @description File name
-             * @example document.pdf
-             */
-            name?: string;
-            /**
-             * @description Parent folder ID
-             * @example 123e4567-e89b-12d3-a456-426614174000
-             */
-            parentId?: string;
-            /**
-             * Format: int64
-             * @description Channel ID
-             * @example 123456
-             */
-            channelId?: number;
-            /** @description Upload ID */
-            uploadId?: string;
-            /** @description File parts */
-            parts?: components["schemas"]["Part"][];
-            /**
-             * Format: int64
-             * @description File size in bytes
-             * @example 1048576
-             */
-            size: number;
-            /**
-             * Format: date-time
-             * @description Last update time
-             */
-            updatedAt: string;
         };
         /** @description File sharing information and settings */
         FileShare: {
@@ -895,8 +925,23 @@ export interface components {
              * @example document.pdf
              */
             name?: string;
+            /**
+             * @description Parent folder ID
+             * @example 123e4567-e89b-12d3-a456-426614174000
+             */
+            parentId?: string;
+            /**
+             * Format: int64
+             * @description Channel ID
+             * @example 123456
+             */
+            channelId?: number;
+            /** @description Upload ID for hash calculation */
+            uploadId?: string;
             /** @description File parts */
             parts?: components["schemas"]["Part"][];
+            /** @description Indicates if the file is encrypted */
+            encrypted?: boolean;
             /**
              * Format: int64
              * @description File size in bytes
@@ -908,6 +953,18 @@ export interface components {
              * @description Last update time
              */
             updatedAt?: string;
+        };
+        /**
+         * @description Zip download request
+         * @example {
+         *       "ids": [
+         *         "123e4567-e89b-12d3-a456-426614174000"
+         *       ]
+         *     }
+         */
+        FileZipDownload: {
+            /** @description Array of file ids to bundle into a zip archive */
+            ids: string[];
         };
         /** @description Pagination metadata containing count, page information */
         Meta: {
@@ -939,6 +996,14 @@ export interface components {
              * @example abc123
              */
             salt?: string;
+        };
+        /** @description Server-controlled feature flags exposed to clients */
+        ServerConfig: {
+            /**
+             * @description Whether the server can bundle multiple files into a zip for download
+             * @example true
+             */
+            zipDownloadEnabled: boolean;
         };
         /** @description User session information containing authentication and profile details */
         Session: {
@@ -1044,6 +1109,11 @@ export interface components {
              * @example 123e4567-e89b-12d3-a456-426614174000
              */
             destParentId?: string;
+            /**
+             * @description Full path of the file/folder (e.g., 'documents/projects/file.txt')
+             * @example documents/2023/report.pdf
+             */
+            path?: string;
         };
         /** @description Details of an uploaded part */
         UploadPart: {
@@ -1182,6 +1252,8 @@ export interface components {
         "UploadQuery.encrypted": boolean;
         /** @description Original file name */
         "UploadQuery.fileName": string;
+        /** @description Enable BLAKE3 hashing for integrity checking */
+        "UploadQuery.hashing": boolean;
         /** @description Name of the part being uploaded */
         "UploadQuery.partName": string;
         /** @description Part number in sequence */
@@ -1206,7 +1278,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description There is no content to send for this request, but the headers may be useful.  */
+            /** @description There is no content to send for this request, but the headers may be useful. */
             204: {
                 headers: {
                     "Set-Cookie": string;
@@ -1234,7 +1306,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description There is no content to send for this request, but the headers may be useful.  */
+            /** @description There is no content to send for this request, but the headers may be useful. */
             204: {
                 headers: {
                     "Set-Cookie": string;
@@ -1319,6 +1391,35 @@ export interface operations {
             };
         };
     };
+    Config_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerConfig"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     Events_getEvents: {
         parameters: {
             query?: never;
@@ -1335,6 +1436,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Event"][];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    Events_eventsStream: {
+        parameters: {
+            query?: {
+                /** @description Heartbeat interval in milliseconds (default: 30000) */
+                interval?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    "Cache-Control": "no-cache";
+                    Connection: "keep-alive";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
                 };
             };
             /** @description An unexpected error response. */
@@ -1565,6 +1700,41 @@ export interface operations {
             };
         };
     };
+    Files_downloadZip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileZipDownload"];
+            };
+        };
+        responses: {
+            /** @description Zip archive streaming response */
+            200: {
+                headers: {
+                    /** @description Archive attachment information */
+                    "Content-Disposition": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     Files_getById: {
         parameters: {
             query?: never;
@@ -1654,39 +1824,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["File"];
                 };
-            };
-            /** @description An unexpected error response. */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    Files_updateParts: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FilePartsUpdate"];
-            };
-        };
-        responses: {
-            /** @description There is no content to send for this request, but the headers may be useful. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description An unexpected error response. */
             default: {
@@ -2071,6 +2208,43 @@ export interface operations {
             };
         };
     };
+    Shares_downloadZip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileZipDownload"];
+            };
+        };
+        responses: {
+            /** @description Zip archive streaming response */
+            200: {
+                headers: {
+                    /** @description Archive attachment information */
+                    "Content-Disposition": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     Uploads_stats: {
         parameters: {
             query: {
@@ -2146,6 +2320,8 @@ export interface operations {
                 channelId?: components["parameters"]["UploadQuery.channelId"];
                 /** @description Whether the upload content is encrypted */
                 encrypted?: components["parameters"]["UploadQuery.encrypted"];
+                /** @description Enable BLAKE3 hashing for integrity checking */
+                hashing?: components["parameters"]["UploadQuery.hashing"];
             };
             header: {
                 "Content-Length": number;

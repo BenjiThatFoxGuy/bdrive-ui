@@ -30,7 +30,7 @@ import {
   defaultViewId,
   sortViewMap,
 } from "@/utils/defaults";
-import { fileQueries, useSession } from "@/utils/query-options";
+import { fileQueries, useServerConfig, useSession } from "@/utils/query-options";
 import { useFileUploadStore, useModalStore } from "@/utils/stores";
 
 import { FileOperationModal } from "./modals/file-operation";
@@ -149,11 +149,19 @@ export const DriveFileBrowser = memo(() => {
     return [];
   }, [search?.path, search?.selectId, search?.parentId, view, files]);
 
+  const { zipDownloadEnabled } = useServerConfig();
+
   const scopedFileActions = useMemo(() => {
+    let actions = fileActions;
     // Show in search, recent, and browse views; hide in my-drive and shared views
-    if (view === "search" || view === "recent" || view === "browse") return fileActions;
-    return fileActions.filter((action) => action.id !== CustomActions.ShowInFolder.id);
-  }, [view]);
+    if (!(view === "search" || view === "recent" || view === "browse")) {
+      actions = actions.filter((action) => action.id !== CustomActions.ShowInFolder.id);
+    }
+    if (!zipDownloadEnabled) {
+      actions = actions.filter((action) => action.id !== CustomActions.DownloadAsZip.id);
+    }
+    return actions;
+  }, [view, zipDownloadEnabled]);
 
   useEffect(() => {
     const selectId = search?.selectId;
