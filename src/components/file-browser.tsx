@@ -37,7 +37,6 @@ import { FileOperationModal } from "./modals/file-operation";
 import PreviewModal from "./modals/preview";
 import { Upload } from "./upload";
 import { UploadDropzone } from "./upload/drop-zone";
-import { FileToolbarMenu } from "./file-toolbar-menu";
 import type { BrowseView, FileListParams } from "@/types";
 
 let firstRender = true;
@@ -222,10 +221,7 @@ export const DriveFileBrowser = memo(() => {
           breakpoint={breakpoint}
         >
           {view === "my-drive" && <FileNavbar breakpoint={breakpoint} />}
-          <div className="flex items-center gap-1">
-            <FileToolbar className={view !== "my-drive" ? "pt-2" : ""} />
-            <FileToolbarMenu onFileAction={actionHandler()} view={view} zipDownloadEnabled={zipDownloadEnabled} />
-          </div>
+          <FileToolbar className={view !== "my-drive" ? "pt-2" : ""} />
           <FileList
             hasNextPage={hasNextPage}
             isNextPageLoading={isFetchingNextPage}

@@ -61,6 +61,8 @@ export const CustomActions = {
     button: {
       name: "Share",
       contextMenu: true,
+      toolbar: true,
+      group: "More",
       icon: Share,
     },
   } as const),
@@ -72,6 +74,8 @@ export const CustomActions = {
     button: {
       name: "Copy Link",
       contextMenu: true,
+      toolbar: true,
+      group: "More",
       icon: FbIconName.copy,
     },
   } as const),
@@ -93,6 +97,8 @@ export const CustomActions = {
     button: {
       name: "Show in Folder",
       contextMenu: true,
+      toolbar: true,
+      group: "More",
       icon: MaterialSymbolsFolderOpen,
     },
   } as const),
@@ -103,6 +109,8 @@ export const CustomActions = {
     button: {
       name: "Download as Zip",
       contextMenu: true,
+      toolbar: true,
+      group: "More",
       icon: MaterialSymbolsFolderZip,
     },
   } as const),
@@ -113,6 +121,8 @@ export const CustomActions = {
     button: {
       name: "Star/Unstar",
       contextMenu: true,
+      toolbar: true,
+      group: "More",
       icon: IconMaterialSymbolsStar,
     },
   } as const),
