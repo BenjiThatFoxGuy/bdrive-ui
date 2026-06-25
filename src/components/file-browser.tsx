@@ -153,8 +153,8 @@ export const DriveFileBrowser = memo(() => {
 
   const scopedFileActions = useMemo(() => {
     let actions = fileActions;
-    // Show in search, recent, browse, and starred views; hide in my-drive and shared views
-    if (!(view === "search" || view === "recent" || view === "browse" || view === "starred")) {
+    // Show in search, recent, browse, starred, and shared views; hide in my-drive only
+    if (!(view === "search" || view === "recent" || view === "browse" || view === "starred" || view === "shared")) {
       actions = actions.filter((action) => action.id !== CustomActions.ShowInFolder.id);
     }
     if (!zipDownloadEnabled) {
