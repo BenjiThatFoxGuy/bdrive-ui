@@ -129,6 +129,7 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
         modDate: item.updatedAt,
         isDir: true,
         parentId: item.parentId,
+        path: item.path,
       };
     }
 
@@ -159,6 +160,7 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
       modDate: item.updatedAt,
       isEncrypted: item.encrypted,
       parentId: item.parentId,
+      path: item.path,
     };
   });
 };
