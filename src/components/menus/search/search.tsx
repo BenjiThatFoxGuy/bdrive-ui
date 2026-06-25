@@ -73,6 +73,7 @@ const defaultFilters = {
   path: "",
   deepSearch: false,
   searchType: "text",
+  starred: false,
 };
 
 export const SearchMenu = memo(({ isOpen, setIsOpen, triggerRef }: SearchMenuProps) => {
@@ -135,6 +136,8 @@ export const SearchMenu = memo(({ isOpen, setIsOpen, triggerRef }: SearchMenuPro
           filterQuery[key] = value;
         } else if (key === "searchType" && value) {
           filterQuery[key] = value;
+        } else if (key === "starred" && value) {
+          filterQuery.starred = true;
         }
       }
       const nextRoute: NavigateOptions = {
@@ -293,6 +296,23 @@ export const SearchMenu = memo(({ isOpen, setIsOpen, triggerRef }: SearchMenuPro
                     </FilterChip>
                   ))}
                 </CheckboxGroup>
+              )}
+            />
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <Controller
+              name="starred"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  onChange={field.onChange}
+                  isSelected={field.value}
+                  className="text-sm"
+                  name={field.name}
+                >
+                  Starred only
+                </Checkbox>
               )}
             />
           </section>
