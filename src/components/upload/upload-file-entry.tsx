@@ -102,6 +102,11 @@ const UploadFileEntry = memo(function UploadFileEntry({
                 Failed
               </span>
             )}
+            {status === FileUploadStatus.AWAITING_CONFLICT && (
+              <span className="text-error font-medium text-[10px] uppercase tracking-wider">
+                Name conflict
+              </span>
+            )}
           </div>
         </div>
 

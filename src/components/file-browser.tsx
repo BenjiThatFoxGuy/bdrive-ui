@@ -171,7 +171,10 @@ export const DriveFileBrowser = memo(() => {
     navigate({
       to: "/$view",
       params: { view },
-      search: (prev) => ({ ...prev, selectId: undefined }),
+      // prev is the router-wide search union (sort widens to string), so pin it
+      // back to this route's params type after clearing selectId.
+      search: (prev) =>
+        ({ ...prev, selectId: undefined }) as FileListParams["params"],
       replace: true,
     });
   }, [search?.selectId, files, navigate, view]);

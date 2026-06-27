@@ -47,6 +47,81 @@ function generateUUID(): string {
 
 
 
+// Computes the deterministic upload id used to address in-progress upload parts
+// for a file. Mirrors the id used inside uploadFile so callers can clean up
+// orphaned parts via DELETE /api/uploads/{id}.
+export const computeUploadId = async (
+  file: File,
+  path: string,
+  userId: number,
+): Promise<string> => {
+  const hashFn = await getMd5Hash();
+  return hashFn(
+    `${path}/${file.name}${file.size.toString()}${formatTime(file.lastModified)}${userId}`,
+  );
+};
+
+// Deletes any uploaded parts associated with an upload id. Best-effort: failures
+// are swallowed so cleanup never blocks the surrounding flow.
+export const deleteUploadParts = async (uploadId: string): Promise<void> => {
+  try {
+    await fetchClient.DELETE("/uploads/{id}", {
+      params: { path: { id: uploadId } },
+    });
+  } catch {
+    // ignore – the parts may not exist yet or were already removed.
+  }
+};
+
+// Returns true when a file with the exact name already exists in the destination
+// folder. Uses the find operation scoped to active files only.
+export const checkFileExists = async (
+  path: string,
+  name: string,
+  signal?: AbortSignal,
+): Promise<boolean> => {
+  const res = (
+    await fetchClient.GET("/files", {
+      params: {
+        query: {
+          path,
+          name,
+          operation: "find",
+          type: "file",
+          status: "active",
+        },
+      },
+      signal,
+    })
+  ).data;
+  return Boolean(res && res.items.length > 0);
+};
+
+// Splits a filename into [base, ext] where ext keeps its leading dot. Returns an
+// empty extension for names without one (and for dotfiles like ".env").
+const splitName = (name: string): [string, string] => {
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) return [name, ""];
+  return [name.slice(0, dot), name.slice(dot)];
+};
+
+// Produces a unique name by appending " (n)" before the extension
+// (report.pdf -> report (1).pdf -> report (2).pdf ...), checking each candidate
+// against the supplied predicate until a free name is found.
+export const generateUniqueName = async (
+  originalName: string,
+  isTaken: (candidate: string) => Promise<boolean>,
+): Promise<string> => {
+  if (!(await isTaken(originalName))) return originalName;
+  const [base, ext] = splitName(originalName);
+  for (let n = 1; n <= 10000; n++) {
+    const candidate = `${base} (${n})${ext}`;
+    if (!(await isTaken(candidate))) return candidate;
+  }
+  // Extremely unlikely fallback to guarantee uniqueness.
+  return `${base} (${Date.now()})${ext}`;
+};
+
 export const uploadChunk = <T extends {}>(
   url: string,
   body: Blob,
