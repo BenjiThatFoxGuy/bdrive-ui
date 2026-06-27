@@ -8,7 +8,13 @@ export enum FileUploadStatus {
   CANCELLED = 3,
   FAILED = 4,
   SKIPPED = 5,
+  // The file name already exists in the destination folder and the upload is
+  // paused for this single item while the user picks a resolution.
+  AWAITING_CONFLICT = 6,
 }
+
+// User choices offered by the conflict-resolution prompt in the upload widget.
+export type ConflictAction = "skip" | "overwrite" | "rename" | "cancel";
 
 export interface UploadFile {
   id: string;
@@ -26,6 +32,9 @@ export interface UploadFile {
   chunksCompleted?: number;
   error?: string;
   collapsed?: boolean;
+  // Set once the user has resolved a conflict (overwrite/rename) so the item is
+  // re-queued without running duplicate detection a second time.
+  skipConflictCheck?: boolean;
 }
 
 import { scanEntries } from "../file-scanner";
@@ -38,6 +47,9 @@ export interface UploadState {
   fileDialogOpen: boolean;
   folderDialogOpen: boolean;
   uploadOpen: boolean;
+  // When set, every remaining conflict in the batch is resolved automatically
+  // with this action instead of prompting the user once per file.
+  applyToAllAction: ConflictAction | null;
   actions: {
     addFiles: (files: File[]) => void;
     addFolder: (files: File[], folderName: string) => void;
@@ -60,6 +72,12 @@ export interface UploadState {
     toggleFolderCollapsed: (id: string) => void;
     startNextUpload: () => void;
     clearAll: () => void;
+    // Conflict resolution.
+    setApplyToAllAction: (action: ConflictAction | null) => void;
+    markAwaitingConflict: (id: string) => void;
+    skipFile: (id: string) => void;
+    requeueResolvedFile: (id: string) => void;
+    renameAndRequeue: (id: string, newName: string) => void;
   };
 }
 
@@ -72,6 +90,7 @@ export const useFileUploadStore = create<UploadState>()(
     fileDialogOpen: false,
     folderDialogOpen: false,
     uploadOpen: false,
+    applyToAllAction: null,
     actions: {
       addFiles: (files: File[]) =>
         set((state) => {
@@ -296,6 +315,7 @@ export const useFileUploadStore = create<UploadState>()(
             state.currentFileId = "";
             state.collapse = false;
             state.uploadOpen = false;
+            state.applyToAllAction = null;
           }
         }),
       setFolderId: (id: string, folderId: string) =>
@@ -389,6 +409,7 @@ export const useFileUploadStore = create<UploadState>()(
           state.uploadOpen = false;
           state.fileDialogOpen = false;
           state.folderDialogOpen = false;
+          state.applyToAllAction = null;
         }),
       toggleCollapse: () =>
         set((state) => {
@@ -423,6 +444,91 @@ export const useFileUploadStore = create<UploadState>()(
           });
 
           state.currentFileId = eligibleFiles[0] || "";
+        }),
+
+      setApplyToAllAction: (action: ConflictAction | null) =>
+        set((state) => {
+          state.applyToAllAction = action;
+        }),
+
+      markAwaitingConflict: (id: string) =>
+        set((state) => {
+          if (!state.fileMap[id]) return;
+          state.fileMap[id].status = FileUploadStatus.AWAITING_CONFLICT;
+        }),
+
+      skipFile: (id: string) =>
+        set((state) => {
+          const file = state.fileMap[id];
+          if (!file) return;
+          file.status = FileUploadStatus.SKIPPED;
+          // If the skipped file was the active one, move on to the next.
+          if (state.currentFileId === id) {
+            const eligibleFiles = state.filesIds.filter((fid) => {
+              const f = state.fileMap[fid];
+              if (f.status !== FileUploadStatus.NOT_STARTED) return false;
+              if (f.parentFolderId) {
+                const parent = state.fileMap[f.parentFolderId];
+                return (
+                  parent &&
+                  (parent.status === FileUploadStatus.UPLOADED ||
+                    parent.status === FileUploadStatus.SKIPPED)
+                );
+              }
+              return true;
+            });
+            state.currentFileId = eligibleFiles[0] || "";
+          }
+        }),
+
+      requeueResolvedFile: (id: string) =>
+        set((state) => {
+          const file = state.fileMap[id];
+          if (!file) return;
+          // A fresh controller is needed in case the previous one was aborted.
+          file.controller = new AbortController();
+          file.status = FileUploadStatus.NOT_STARTED;
+          file.skipConflictCheck = true;
+          file.progress = 0;
+          file.error = undefined;
+          // If nothing is actively uploading, make this the current item so the
+          // upload effect picks it up immediately.
+          const anyUploading = state.filesIds.some(
+            (fid) => state.fileMap[fid]?.status === FileUploadStatus.UPLOADING,
+          );
+          const currentActive =
+            state.currentFileId &&
+            state.fileMap[state.currentFileId]?.status ===
+              FileUploadStatus.NOT_STARTED;
+          if (!anyUploading && !currentActive) {
+            state.currentFileId = id;
+          }
+        }),
+
+      renameAndRequeue: (id: string, newName: string) =>
+        set((state) => {
+          const file = state.fileMap[id];
+          if (!file) return;
+          // File.name is read-only, so wrap the original blob under the new name.
+          file.file = new File([file.file], newName, {
+            type: file.file.type,
+            lastModified: file.file.lastModified,
+          });
+          file.controller = new AbortController();
+          file.status = FileUploadStatus.NOT_STARTED;
+          file.skipConflictCheck = true;
+          file.progress = 0;
+          file.error = undefined;
+          const anyUploading = state.filesIds.some(
+            (fid) => state.fileMap[fid]?.status === FileUploadStatus.UPLOADING,
+          );
+          const currentActive =
+            state.currentFileId &&
+            state.fileMap[state.currentFileId]?.status ===
+              FileUploadStatus.NOT_STARTED;
+          if (!anyUploading && !currentActive) {
+            state.currentFileId = id;
+          }
         }),
     },
   })),

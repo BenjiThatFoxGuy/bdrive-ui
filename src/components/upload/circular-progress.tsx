@@ -22,7 +22,8 @@ export const CircularProgress = memo(function CircularProgress({
   const showStatusIcon =
     status === FileUploadStatus.CANCELLED ||
     status === FileUploadStatus.FAILED ||
-    status === FileUploadStatus.UPLOADED;
+    status === FileUploadStatus.UPLOADED ||
+    status === FileUploadStatus.AWAITING_CONFLICT;
 
   const effectiveShowCancel = showCancel && !showStatusIcon;
 
@@ -33,12 +34,16 @@ export const CircularProgress = memo(function CircularProgress({
           "flex items-center justify-center rounded-full transition-colors duration-300",
           status === FileUploadStatus.CANCELLED && "text-on-surface-variant/50",
           status === FileUploadStatus.FAILED && "text-error",
+          status === FileUploadStatus.AWAITING_CONFLICT && "text-error",
           status === FileUploadStatus.UPLOADED && "text-primary",
         )}
         style={{ width: size, height: size }}
       >
         {status === FileUploadStatus.CANCELLED && <MdiCancel className="size-5" />}
         {status === FileUploadStatus.FAILED && <IcRoundErrorOutline className="size-5" />}
+        {status === FileUploadStatus.AWAITING_CONFLICT && (
+          <IcRoundErrorOutline className="size-5" />
+        )}
         {status === FileUploadStatus.UPLOADED && <IcOutlineCheckCircle className="size-5" />}
       </div>
     );
