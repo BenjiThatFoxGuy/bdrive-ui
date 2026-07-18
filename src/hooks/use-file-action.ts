@@ -13,6 +13,7 @@ import {
 import IconFlatColorIconsVlc from "~icons/flat-color-icons/vlc";
 import IconPotPlayerIcon from "~icons/material-symbols/play-circle-rounded";
 import IconMaterialSymbolsStar from "~icons/material-symbols/star-rounded";
+import IconMaterialSymbolsInfo from "~icons/material-symbols/info-outline-rounded";
 import toast from "react-hot-toast";
 
 import {
@@ -124,6 +125,19 @@ export const CustomActions = {
       toolbar: true,
       group: "More",
       icon: IconMaterialSymbolsStar,
+    },
+  } as const),
+
+  ShowFileInfo: defineFileAction({
+    id: "show_file_info",
+    requiresSelection: true,
+    fileFilter: (file) => !(file && "isDir" in file),
+    button: {
+      name: "Info",
+      contextMenu: true,
+      toolbar: true,
+      group: "More",
+      icon: IconMaterialSymbolsInfo,
     },
   } as const),
 };
@@ -290,6 +304,15 @@ export const useFileAction = (
           actions.set({
             open: true,
             operation: CustomActions.ShareFiles.id,
+            currentFile: data.state.selectedFiles[0],
+          });
+          break;
+        }
+
+        case CustomActions.ShowFileInfo.id: {
+          actions.set({
+            open: true,
+            operation: CustomActions.ShowFileInfo.id,
             currentFile: data.state.selectedFiles[0],
           });
           break;
@@ -573,4 +596,8 @@ export const fileActions = [
 
 export const sharefileActions = Object.keys(CustomActions)
   .map((t) => CustomActions[t as keyof typeof CustomActions])
-  .filter((action) => action.id !== CustomActions.ShareFiles.id);
+  .filter(
+    (action) =>
+      action.id !== CustomActions.ShareFiles.id &&
+      action.id !== CustomActions.ShowFileInfo.id,
+  );

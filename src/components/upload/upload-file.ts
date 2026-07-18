@@ -256,6 +256,7 @@ export const uploadFile = async (
             partNo: partIndex + 1,
             encrypted: encyptFile,
             channelId,
+            hashing: true,
           } as const;
 
           let retryCount = 0;

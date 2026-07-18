@@ -13,18 +13,18 @@ import {
 } from "@tw-material/react";
 import { useShallow } from "zustand/react/shallow";
 
-import { useModalStore } from "@/utils/stores";
+import { useModalStore, useSettingsStore } from "@/utils/stores";
 import { Controller, useForm } from "react-hook-form";
 import { CustomActions } from "@/hooks/use-file-action";
 import { CopyButton } from "@/components/copy-button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import IcRoundClose from "~icons/ic/round-close";
-import { getNextDate } from "@/utils/common";
+import { filesize, getNextDate } from "@/utils/common";
 import ShowPasswordIcon from "~icons/mdi/eye-outline";
 import HidePasswordIcon from "~icons/mdi/eye-off-outline";
 import MdiProtectedOutline from "~icons/mdi/protected-outline";
 import { $api } from "@/utils/api";
-import { useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 type FileModalProps = {
   queryKey: any;
@@ -398,6 +398,107 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
   );
 });
 
+const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div className="flex justify-between items-center py-2 border-b border-outline-variant/30 last:border-0 gap-4">
+    <span className="text-sm font-medium text-on-surface-variant">{label}</span>
+    <span className="text-base font-semibold text-right break-all">{value}</span>
+  </div>
+);
+
+interface FileInfoDialogProps {
+  handleClose: () => void;
+}
+
+const FileInfoDialog = memo(({ handleClose }: FileInfoDialogProps) => {
+  const currentFile = useModalStore((state) => state.currentFile);
+  const navigate = useNavigate();
+  const { settings } = useSettingsStore();
+  const usePathNav = settings.usePathNavigation ?? true;
+
+  const { data: canonicalFile } = $api.useQuery(
+    "get",
+    "/files/{id}",
+    { params: { path: { id: currentFile.referencedFileId as string } } },
+    { enabled: !!currentFile.referencedFileId },
+  );
+
+  const goToCanonicalFile = useCallback(() => {
+    if (!canonicalFile) return;
+    if (usePathNav && canonicalFile.path) {
+      let p = canonicalFile.path;
+      if (p.endsWith("/")) p = p.slice(0, -1);
+      const lastSlash = p.lastIndexOf("/");
+      let parentPath = lastSlash >= 0 ? p.slice(0, lastSlash) : "";
+      if (parentPath === "") parentPath = "/";
+      if (!parentPath.startsWith("/")) parentPath = `/${parentPath}`;
+      navigate({
+        to: "/$view",
+        params: { view: "my-drive" },
+        search: { path: parentPath, selectId: canonicalFile.id },
+      });
+    } else {
+      navigate({
+        to: "/$view",
+        params: { view: "my-drive" },
+        search: { selectId: canonicalFile.id },
+      });
+    }
+    handleClose();
+  }, [canonicalFile, usePathNav]);
+
+  return (
+    <>
+      <ModalHeader className="flex flex-col gap-1">File Info</ModalHeader>
+      <ModalBody>
+        <div className="flex flex-col">
+          <InfoRow label="Name" value={currentFile.name} />
+          <InfoRow label="Type" value={currentFile.mimeType || currentFile.type} />
+          <InfoRow
+            label="Size"
+            value={currentFile.size ? filesize(currentFile.size) : "—"}
+          />
+          {currentFile.path && <InfoRow label="Path" value={currentFile.path} />}
+          <InfoRow label="Encrypted" value={currentFile.isEncrypted ? "Yes" : "No"} />
+          <InfoRow label="Starred" value={currentFile.starred ? "Yes" : "No"} />
+          {currentFile.modDate && (
+            <InfoRow label="Updated" value={new Date(currentFile.modDate).toLocaleString()} />
+          )}
+          {currentFile.hash && (
+            <InfoRow
+              label="Hash"
+              value={<span className="font-mono text-xs">{currentFile.hash}</span>}
+            />
+          )}
+          {currentFile.referencedFileId && (
+            <InfoRow
+              label="Shares storage with"
+              value={
+                canonicalFile ? (
+                  <Button
+                    size="sm"
+                    variant="text"
+                    className="font-normal"
+                    onPress={goToCanonicalFile}
+                  >
+                    {canonicalFile.name}
+                  </Button>
+                ) : (
+                  "Loading..."
+                )
+              }
+            />
+          )}
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button className="font-normal" variant="text" onPress={handleClose}>
+          Close
+        </Button>
+      </ModalFooter>
+    </>
+  );
+});
+
 export const FileOperationModal = memo(({ queryKey }: FileModalProps) => {
   const { open, operation, actions } = useModalStore(
     useShallow((state) => ({
@@ -425,6 +526,8 @@ export const FileOperationModal = memo(({ queryKey }: FileModalProps) => {
         return <DeleteDialog queryKey={queryKey} handleClose={handleClose} />;
       case CustomActions.ShareFiles.id:
         return <ShareFileDialog handleClose={handleClose} />;
+      case CustomActions.ShowFileInfo.id:
+        return <FileInfoDialog handleClose={handleClose} />;
       default:
         return null;
     }

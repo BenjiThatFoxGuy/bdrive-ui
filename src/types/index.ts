@@ -20,6 +20,8 @@ export type SingleFile = {
   encrypted?: boolean;
   starred?: boolean;
   path?: string;
+  hash?: string;
+  referencedFileId?: string;
 };
 
 export type FilePayload = {
