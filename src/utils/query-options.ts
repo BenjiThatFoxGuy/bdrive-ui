@@ -34,7 +34,7 @@ export const serverConfigOptions = queryOptions({
     const res = await fetchClient.GET("/config", { signal });
     return res.data ?? null;
   },
-  staleTime: Infinity,
+  staleTime: Number.POSITIVE_INFINITY,
 });
 
 export const useServerConfig = () => {
@@ -190,6 +190,8 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
       starred: item.starred,
       parentId: item.parentId,
       path: item.path,
+      hash: item.hash,
+      referencedFileId: item.referencedFileId,
     };
   });
 };
