@@ -422,29 +422,43 @@ const FileInfoDialog = memo(({ handleClose }: FileInfoDialogProps) => {
     { enabled: !!currentFile.referencedFileId },
   );
 
+  const { data: duplicates } = $api.useQuery(
+    "get",
+    "/files/{id}/duplicates",
+    { params: { path: { id: currentFile.id } } },
+    { enabled: !!currentFile.hash },
+  );
+
+  const goToFile = useCallback(
+    (file: { id?: string; path?: string }) => {
+      if (!file.id) return;
+      if (usePathNav && file.path) {
+        let p = file.path;
+        if (p.endsWith("/")) p = p.slice(0, -1);
+        const lastSlash = p.lastIndexOf("/");
+        let parentPath = lastSlash >= 0 ? p.slice(0, lastSlash) : "";
+        if (parentPath === "") parentPath = "/";
+        if (!parentPath.startsWith("/")) parentPath = `/${parentPath}`;
+        navigate({
+          to: "/$view",
+          params: { view: "my-drive" },
+          search: { path: parentPath, selectId: file.id },
+        });
+      } else {
+        navigate({
+          to: "/$view",
+          params: { view: "my-drive" },
+          search: { selectId: file.id },
+        });
+      }
+      handleClose();
+    },
+    [usePathNav, navigate, handleClose],
+  );
+
   const goToCanonicalFile = useCallback(() => {
-    if (!canonicalFile) return;
-    if (usePathNav && canonicalFile.path) {
-      let p = canonicalFile.path;
-      if (p.endsWith("/")) p = p.slice(0, -1);
-      const lastSlash = p.lastIndexOf("/");
-      let parentPath = lastSlash >= 0 ? p.slice(0, lastSlash) : "";
-      if (parentPath === "") parentPath = "/";
-      if (!parentPath.startsWith("/")) parentPath = `/${parentPath}`;
-      navigate({
-        to: "/$view",
-        params: { view: "my-drive" },
-        search: { path: parentPath, selectId: canonicalFile.id },
-      });
-    } else {
-      navigate({
-        to: "/$view",
-        params: { view: "my-drive" },
-        search: { selectId: canonicalFile.id },
-      });
-    }
-    handleClose();
-  }, [canonicalFile, usePathNav]);
+    if (canonicalFile) goToFile(canonicalFile);
+  }, [canonicalFile, goToFile]);
 
   return (
     <>
@@ -485,6 +499,26 @@ const FileInfoDialog = memo(({ handleClose }: FileInfoDialogProps) => {
                 ) : (
                   "Loading..."
                 )
+              }
+            />
+          )}
+          {duplicates && duplicates.items.length > 0 && (
+            <InfoRow
+              label="Duplicates"
+              value={
+                <div className="flex flex-col items-end gap-1">
+                  {duplicates.items.map((dup) => (
+                    <Button
+                      key={dup.id}
+                      size="sm"
+                      variant="text"
+                      className="font-normal"
+                      onPress={() => goToFile(dup)}
+                    >
+                      {dup.name}
+                    </Button>
+                  ))}
+                </div>
               }
             />
           )}

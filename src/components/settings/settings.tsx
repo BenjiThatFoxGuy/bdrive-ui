@@ -5,6 +5,7 @@ import CodiconAccount from "~icons/codicon/account";
 import CodiconSettings from "~icons/codicon/settings";
 import FluentDarkTheme20Filled from "~icons/fluent/dark-theme-20-filled";
 import IcOutlineInfo from "~icons/ic/outline-info";
+import MdiFileMultipleOutline from "~icons/mdi/file-multiple-outline";
 import clsx from "clsx";
 
 import { ForwardLink } from "@/components/forward-link";
@@ -22,6 +23,10 @@ const Tabs = [
   {
     id: "account",
     icon: CodiconAccount,
+  },
+  {
+    id: "deduplication",
+    icon: MdiFileMultipleOutline,
   },
   {
     id: "info",

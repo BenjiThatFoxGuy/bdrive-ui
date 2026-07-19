@@ -17,5 +17,8 @@ export const Route = createFileRoute("/_authed/settings/$tabId")({
         queryClient.ensureQueryData($api.queryOptions("get", "/users/channels")),
       ]);
     }
+    if (params.tabId === "deduplication") {
+      await queryClient.ensureQueryData($api.queryOptions("get", "/dedup/stats"));
+    }
   },
 });

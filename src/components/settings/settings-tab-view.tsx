@@ -3,6 +3,7 @@ import { getRouteApi } from "@tanstack/react-router";
 
 import { AccountTab } from "./account-tab";
 import { AppearanceTab } from "./appearance-tab";
+import { DeduplicationTab } from "./deduplication-tab";
 import { GeneralTab } from "./general-tab";
 import { InfoTab } from "./info-tab";
 
@@ -16,6 +17,8 @@ export const SettingsTabView = memo(() => {
       return <AppearanceTab />;
     case "account":
       return <AccountTab />;
+    case "deduplication":
+      return <DeduplicationTab />;
     case "general":
       return <GeneralTab />;
     default:

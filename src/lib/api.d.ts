@@ -89,6 +89,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dedup/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent deduplication jobs */
+        get: operations["Dedup_listJobs"];
+        put?: never;
+        /**
+         * Start a deduplication job
+         * @description Starts an asynchronous deduplication run and returns the created job. Poll GET /dedup/jobs/{id} for progress. Targeting another user or all users is admin-only and not yet enabled.
+         */
+        post: operations["Dedup_startJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dedup/jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a deduplication job by ID */
+        get: operations["Dedup_getJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dedup/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get current deduplication stats for the caller */
+        get: operations["Dedup_stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events": {
         parameters: {
             query?: never;
@@ -261,6 +316,26 @@ export interface paths {
         put?: never;
         /** Copy file */
         post: operations["Files_copy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/files/{id}/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List files that share content with this file
+         * @description Returns other active, non-encrypted files owned by the same user that have the same content hash as the given file.
+         */
+        get: operations["Files_duplicates"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -675,6 +750,96 @@ export interface components {
              */
             channelId?: number;
         };
+        /** @description An asynchronous deduplication job */
+        DedupJob: {
+            /**
+             * @description Job ID
+             * @example 123e4567-e89b-12d3-a456-426614174000
+             */
+            readonly id: string;
+            /** @description Current status of the job */
+            readonly status: components["schemas"]["DedupJobStatus"];
+            /** @description Options the job was started with */
+            options: components["schemas"]["DedupJobOptions"];
+            /** @description Statistics accumulated so far; final once status is 'completed' */
+            readonly stats: components["schemas"]["DedupStats"];
+            /** @description Error message when status is 'failed' */
+            readonly error?: string;
+            /**
+             * Format: date-time
+             * @description When the job started
+             */
+            readonly startedAt: string;
+            /**
+             * Format: date-time
+             * @description When the job finished; absent while pending or running
+             */
+            readonly finishedAt?: string;
+        };
+        /** @description Options controlling a deduplication run */
+        DedupJobOptions: {
+            /**
+             * @description Compute and report what would change without writing anything to the database
+             * @default false
+             * @example false
+             */
+            dryRun: boolean;
+            /**
+             * @description Compute and persist hashes for files lacking one before grouping (reads content back from Telegram)
+             * @default false
+             * @example false
+             */
+            backfill: boolean;
+            /**
+             * @description Restrict the run to a single Telegram username (admin only). Defaults to the caller's own files.
+             * @example alice
+             */
+            user?: string;
+            /**
+             * @description Run against all users (admin only)
+             * @default false
+             * @example false
+             */
+            allUsers: boolean;
+        };
+        /**
+         * @description Lifecycle status of a deduplication job
+         * @enum {string}
+         */
+        DedupJobStatus: "pending" | "running" | "completed" | "failed";
+        /** @description Statistics describing a deduplication run or the current dedup state */
+        DedupStats: {
+            /**
+             * Format: int64
+             * @description Number of users examined
+             * @example 1
+             */
+            processedUsers: number;
+            /**
+             * Format: int64
+             * @description Number of distinct content hashes for which more than one active file exists
+             * @example 3
+             */
+            duplicateGroups: number;
+            /**
+             * Format: int64
+             * @description Number of files linked to a canonical copy via referencedFileId
+             * @example 5
+             */
+            totalFilesLinked: number;
+            /**
+             * Format: int64
+             * @description Number of previously hash-less files that had a hash computed this run
+             * @example 2
+             */
+            hashesBackfilled: number;
+            /**
+             * Format: int64
+             * @description Number of files that could not be processed
+             * @example 0
+             */
+            skippedFiles: number;
+        };
         /** @description Standard error response */
         Error: {
             /**
@@ -820,6 +985,11 @@ export interface components {
         FileDelete: {
             /** @description Array of file or folders ids to be deleted */
             ids: string[];
+        };
+        /** @description Files that share content with a given file */
+        FileDuplicates: {
+            /** @description Other active, non-encrypted files owned by the same user that have the same content hash */
+            items: components["schemas"]["File"][];
         };
         /** @description Paginated file listing response with metadata */
         FileList: {
@@ -1434,6 +1604,128 @@ export interface operations {
             };
         };
     };
+    Dedup_listJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DedupJob"][];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    Dedup_startJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DedupJobOptions"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DedupJob"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    Dedup_getJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DedupJob"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    Dedup_stats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DedupStats"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     Events_getEvents: {
         parameters: {
             query?: never;
@@ -1839,6 +2131,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["File"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    Files_duplicates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileDuplicates"];
                 };
             };
             /** @description An unexpected error response. */
