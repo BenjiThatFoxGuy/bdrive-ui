@@ -763,6 +763,8 @@ export interface components {
             options: components["schemas"]["DedupJobOptions"];
             /** @description Statistics accumulated so far; final once status is 'completed' */
             readonly stats: components["schemas"]["DedupStats"];
+            /** @description Live progress while running; absent while pending and once finished */
+            readonly progress?: components["schemas"]["DedupProgress"];
             /** @description Error message when status is 'failed' */
             readonly error?: string;
             /**
@@ -807,6 +809,28 @@ export interface components {
          * @enum {string}
          */
         DedupJobStatus: "pending" | "running" | "completed" | "failed";
+        /**
+         * @description Phase of work a running deduplication job is currently in
+         * @enum {string}
+         */
+        DedupPhase: "loading" | "backfilling" | "grouping" | "linking" | "done";
+        /** @description Live progress of a running deduplication job */
+        DedupProgress: {
+            /** @description Phase of work currently in progress */
+            phase: components["schemas"]["DedupPhase"];
+            /**
+             * Format: int64
+             * @description Items processed so far within the current phase
+             * @example 12
+             */
+            current: number;
+            /**
+             * Format: int64
+             * @description Total items to process in the current phase; 0 when not countable (e.g. loading, grouping)
+             * @example 40
+             */
+            total: number;
+        };
         /** @description Statistics describing a deduplication run or the current dedup state */
         DedupStats: {
             /**
