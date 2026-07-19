@@ -29,6 +29,47 @@ const StatTile = memo(
   ),
 );
 
+const phaseLabel: Record<string, string> = {
+  loading: "Loading files",
+  backfilling: "Backfilling hashes",
+  grouping: "Grouping by hash",
+  linking: "Linking duplicates",
+  done: "Finishing up",
+};
+
+const ProgressSection = memo(
+  ({ progress }: { progress: NonNullable<DedupJob["progress"]> }) => {
+    const { phase, current, total } = progress;
+    const determinate = total > 0;
+    const percent = determinate
+      ? Math.min(100, Math.round((current / total) * 100))
+      : 0;
+    return (
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-on-surface-variant">
+            {phaseLabel[phase] ?? phase}
+          </span>
+          {determinate && (
+            <span className="tabular-nums text-on-surface-variant">
+              {current} / {total} ({percent}%)
+            </span>
+          )}
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-container-highest">
+          <div
+            className={clsx(
+              "h-full rounded-full bg-primary transition-[width] duration-500 ease-out",
+              determinate ? "" : "w-1/3 animate-pulse",
+            )}
+            style={determinate ? { width: `${percent}%` } : undefined}
+          />
+        </div>
+      </div>
+    );
+  },
+);
+
 const statusChip = (status: DedupJob["status"]) => {
   const map: Record<DedupJob["status"], string> = {
     pending: "bg-secondary-container text-on-secondary-container",
@@ -205,6 +246,9 @@ export const DeduplicationTab = memo(() => {
               </span>
               {statusChip(job.status)}
             </div>
+            {!terminal(job.status) && job.progress && (
+              <ProgressSection progress={job.progress} />
+            )}
             {job.status === "failed" && job.error && (
               <p className="text-sm text-error">{job.error}</p>
             )}
