@@ -781,6 +781,11 @@ export interface components {
              */
             hash?: string;
             /**
+             * @description ID of the canonical file this is a deduplicated reference to, if any
+             * @example 123e4567-e89b-12d3-a456-426614174000
+             */
+            readonly referencedFileId?: string;
+            /**
              * Format: date-time
              * @description Last update time
              */
