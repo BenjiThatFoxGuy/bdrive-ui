@@ -34,6 +34,8 @@ const VideoPreview = lazy(() => import("@/components/previews/video/video-previe
 
 const EpubPreview = lazy(() => import("@/components/previews/epub-preview"));
 
+const PkPassPreview = lazy(() => import("@/components/previews/pkpass/pkpass-preview"));
+
 const findNext = (files: FileData[], fileId: string, previewType: string) => {
   let index = -1;
   let firstPreviewIndex = -1;
@@ -234,6 +236,13 @@ export default memo(function PreviewModal({
         case preview.audio:
           return (
             <AudioPreview nextItem={nextItem} prevItem={prevItem} name={name} assetUrl={assetUrl} />
+          );
+
+        case preview.pkpass:
+          return (
+            <Suspense fallback={<Loader />}>
+              <PkPassPreview assetUrl={assetUrl} />
+            </Suspense>
           );
 
         default:
