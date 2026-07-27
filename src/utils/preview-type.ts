@@ -10,6 +10,7 @@ export const preview = {
   audio: "audio",
   office: "office",
   epub: "epub",
+  pkpass: "pkpass",
 };
 
 export const extensions = {
@@ -77,6 +78,8 @@ export const extensions = {
   flac: preview.audio,
 
   epub: preview.epub,
+
+  pkpass: preview.pkpass,
 };
 
 export function getPreviewType(extension: string, flags?: { video?: boolean }): string | undefined {
