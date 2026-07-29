@@ -122,6 +122,18 @@ export const generateUniqueName = async (
   return `${base} (${Date.now()})${ext}`;
 };
 
+// The server hashes each uploaded part on its own and concatenates the resulting
+// 16MiB block hashes to build the file's BLAKE3 tree hash. That only reproduces
+// the hash of the whole stream — the one other clients compute, and the one
+// deduplication matches on — when every part is a whole number of blocks. A part
+// size that splits a block would give the same bytes a different hash depending
+// on which client uploaded them, so the configured size is rounded to a 16MiB
+// multiple first.
+const HASH_BLOCK_SIZE = 16 * 1024 * 1024;
+
+export const alignChunkSize = (chunkSize: number): number =>
+  Math.max(1, Math.round(chunkSize / HASH_BLOCK_SIZE)) * HASH_BLOCK_SIZE;
+
 export const uploadChunk = <T extends {}>(
   url: string,
   body: Blob,
@@ -166,7 +178,7 @@ export const uploadChunk = <T extends {}>(
 export const uploadFile = async (
   file: File,
   path: string,
-  chunkSize: number,
+  configuredChunkSize: number,
   userId: number,
   concurrency: number,
   retries: number,
@@ -194,6 +206,8 @@ export const uploadFile = async (
       throw Error("file exists");
     }
   }
+
+  const chunkSize = alignChunkSize(configuredChunkSize);
 
   const totalParts = Math.ceil(file.size / chunkSize);
 
@@ -316,6 +330,10 @@ export const uploadFile = async (
       .sort((a, b) => a.partNo - b.partNo)
       .map((item) => ({ id: item.partId, salt: item.salt }));
 
+    // uploadId is sent alongside parts so the server can pick up the BLAKE3 block
+    // hashes it recorded while each part streamed in, instead of re-reading the
+    // whole file back from Telegram to hash it. Parts stay in the payload for
+    // servers that predate that behaviour.
     const payload = {
       name: fileName,
       mimeType: file.type ?? "application/octet-stream",
@@ -325,6 +343,7 @@ export const uploadFile = async (
       path: path ? path : "/",
       encrypted: encyptFile,
       channelId,
+      uploadId,
     } as const;
 
     await onCreate(payload);

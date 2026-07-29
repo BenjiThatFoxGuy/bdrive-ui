@@ -36,11 +36,14 @@ export interface SettingFieldConfig<T> {
   category: "upload" | "display" | "security" | "other";
 }
 
+// Every size is a whole number of 16MiB hash blocks, so a multi-part upload
+// hashes to the same value as the same content uploaded in one part or by
+// another client. See alignChunkSize in components/upload/upload-file.ts.
 const splitFileSizes = [
-  { value: 100 * 1024 * 1024, label: "100MB" },
-  { value: 500 * 1024 * 1024, label: "500MB" },
-  { value: 1000 * 1024 * 1024, label: "1GB" },
-  { value: 2 * 1000 * 1024 * 1024, label: "2GB" },
+  { value: 96 * 1024 * 1024, label: "96MB" },
+  { value: 512 * 1024 * 1024, label: "512MB" },
+  { value: 1024 * 1024 * 1024, label: "1GB" },
+  { value: 2000 * 1024 * 1024, label: "2GB" },
 ];
 
 export const generalSettingsConfig: SettingFieldConfig<SettingValue>[] = [
