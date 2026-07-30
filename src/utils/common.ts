@@ -1,6 +1,5 @@
 import type { Session } from "@/types";
 import { partial } from "filesize";
-import { fetchClient } from "./api";
 import { useSettingsStore } from "./stores/settings";
 
 export const navigateToExternalUrl = (url: string, shouldOpenNewTab = true) => {
@@ -35,40 +34,101 @@ export const downloadFiles = (urls: string[], delayMs = 300) => {
   });
 };
 
-export const downloadFilesAsZip = async (ids: string[], zipName = "download.zip") => {
-  const { data, response } = await fetchClient.POST("/files/zip", {
-    body: { ids },
-    parseAs: "blob",
+// The server streams a zip archive as it builds it, but fetch() can only hand
+// us the finished bytes — buffering a folder-sized download in tab memory, and
+// losing the filename the server picked. Submitting a form instead lets the
+// browser write the response straight to disk and honour Content-Disposition.
+//
+// The catch is that a form submission reports nothing back. An attachment
+// response never navigates the target iframe, so its load event stays quiet;
+// an error response renders as a document and fires it. That inversion is the
+// only signal available, so it's what failure is built on.
+const submitZipForm = (action: string, ids: string[]) =>
+  new Promise<void>((resolve, reject) => {
+    const name = `zip-download-${Math.random().toString(36).slice(2)}`;
+
+    const iframe = document.createElement("iframe");
+    iframe.name = name;
+    iframe.style.display = "none";
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = action;
+    form.target = name;
+    form.enctype = "application/x-www-form-urlencoded";
+    form.style.display = "none";
+
+    for (const id of ids) {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "ids";
+      input.value = id;
+      form.appendChild(input);
+    }
+
+    let settled = false;
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      iframe.remove();
+      form.remove();
+    };
+
+    iframe.onload = () => {
+      if (settled) {
+        return;
+      }
+      // A fresh iframe fires load once for its own about:blank before the form
+      // has navigated anywhere. Only an iframe holding a real document is
+      // reporting on the request.
+      let message = "";
+      try {
+        const doc = iframe.contentDocument;
+        if (!doc || doc.location.href === "about:blank") {
+          return;
+        }
+        message = doc.body?.textContent?.trim() ?? "";
+      } catch {
+        // Cross-origin, so not our error document either.
+        return;
+      }
+      if (!message) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      let detail = message;
+      try {
+        detail = JSON.parse(message).message || message;
+      } catch {
+        // Not JSON — fall back to whatever the body said.
+      }
+      reject(new Error(detail));
+    };
+
+    // Nothing was rendered, so the response was an attachment and the browser
+    // is downloading it.
+    const timer = window.setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      resolve();
+    }, 3000);
+
+    document.body.appendChild(iframe);
+    document.body.appendChild(form);
+    form.submit();
   });
-  if (!data) {
-    throw new Error(`Failed to create zip: ${response.status}`);
-  }
 
-  const blobUrl = URL.createObjectURL(data as Blob);
-  triggerDownload(blobUrl, zipName);
-  URL.revokeObjectURL(blobUrl);
-};
+export const downloadFilesAsZip = (ids: string[]) => submitZipForm("/api/files/zip", ids);
 
-export const downloadSharedFilesAsZip = async (
-  shareId: string,
-  password: string | undefined,
-  ids: string[],
-  zipName = "download.zip",
-) => {
-  const { data, response } = await fetchClient.POST("/shares/{id}/zip", {
-    params: { path: { id: shareId } },
-    body: { ids },
-    headers: password ? { Authorization: btoa(`:${password}`) } : {},
-    parseAs: "blob",
-  });
-  if (!data) {
-    throw new Error(`Failed to create zip: ${response.status}`);
-  }
-
-  const blobUrl = URL.createObjectURL(data as Blob);
-  triggerDownload(blobUrl, zipName);
-  URL.revokeObjectURL(blobUrl);
-};
+export const downloadSharedFilesAsZip = (shareId: string, ids: string[]) =>
+  // A password-protected share answers with 401 and WWW-Authenticate, which
+  // makes the browser put up its own prompt — a form submission can't carry the
+  // Authorization header itself.
+  submitZipForm(`/api/shares/${encodeURIComponent(shareId)}/zip`, ids);
 
 export const chainLinks = (path: string) => {
   let pathsoFar = "/";

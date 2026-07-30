@@ -237,7 +237,7 @@ export const useFileAction = (
           toast.promise(downloadFilesAsZip(ids), {
             loading: "Zipping files...",
             success: "Download starting",
-            error: "Failed to create zip",
+            error: (err: Error) => err?.message || "Failed to create zip",
           });
           break;
         }
@@ -500,14 +500,11 @@ export const useShareFileAction = (params: ShareListParams) => {
         case CustomActions.DownloadAsZip.id: {
           const { selectedFilesForAction } = data.state;
           const ids = selectedFilesForAction.map(({ id }) => id);
-          toast.promise(
-            downloadSharedFilesAsZip(params.id, params.password, ids),
-            {
-              loading: "Zipping files...",
-              success: "Download starting",
-              error: "Failed to create zip",
-            },
-          );
+          toast.promise(downloadSharedFilesAsZip(params.id, ids), {
+            loading: "Zipping files...",
+            success: "Download starting",
+            error: (err: Error) => err?.message || "Failed to create zip",
+          });
           break;
         }
         case CustomActions.OpenInVLCPlayer.id: {

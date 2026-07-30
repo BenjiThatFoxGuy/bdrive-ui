@@ -2041,7 +2041,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FileZipDownload"];
+                "application/x-www-form-urlencoded": components["schemas"]["FileZipDownload"];
             };
         };
         responses: {
@@ -2582,7 +2582,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FileZipDownload"];
+                "application/x-www-form-urlencoded": components["schemas"]["FileZipDownload"];
             };
         };
         responses: {
