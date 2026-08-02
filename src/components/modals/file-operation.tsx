@@ -244,6 +244,18 @@ const defaultShareOptions = {
   allowZipDownload: false,
 };
 
+// Client-side mirror of the server's shortCode charset (letters, numbers,
+// dots, dashes, underscores; must start/end alphanumeric) - turns a
+// filename into a candidate code instead of a random one. Anything outside
+// that charset collapses to a dash, leading/trailing separators are
+// stripped (the server rejects those outright), and the result is capped
+// at the server's 255-char bound.
+const slugifyFilename = (name: string) => {
+  const stripEdges = (s: string) => s.replace(/^[^A-Za-z0-9]+/, "").replace(/[^A-Za-z0-9]+$/, "");
+  const slug = stripEdges(name.replace(/[^A-Za-z0-9._-]+/g, "-"));
+  return stripEdges(slug.slice(0, 255));
+};
+
 // Reads the server's error message out of a failed $api mutation, matching
 // the pattern established in settings/account-tab.tsx.
 const shareErrorMessage = async (error: unknown) => {
@@ -416,6 +428,18 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
     }
   }, [file.id, reset]);
 
+  // Unlike suggestCode, this doesn't check availability against the server
+  // - it's filling in a candidate, not reserving one - so a collision still
+  // surfaces the normal "code is already in use" error on submit.
+  const useFilenameCode = useCallback(() => {
+    const slug = slugifyFilename(file.name ?? "");
+    if (!slug) {
+      toast.error("This filename doesn't contain any usable characters for a code.");
+      return;
+    }
+    reset((prev) => ({ ...prev, shortCode: slug }));
+  }, [file.name, reset]);
+
   useEffect(() => {
     if (data) {
       setSharingOn(true);
@@ -538,18 +562,28 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
                         autoComplete="off"
                         isInvalid={!!error}
                         errorMessage={error?.message}
-                        maxLength={32}
+                        maxLength={255}
                         {...field}
                         endContent={
-                          <Button
-                            size="sm"
-                            variant="text"
-                            className="font-normal"
-                            isDisabled={suggesting}
-                            onPress={suggestCode}
-                          >
-                            Suggest
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="text"
+                              className="font-normal"
+                              isDisabled={suggesting}
+                              onPress={suggestCode}
+                            >
+                              Suggest
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="text"
+                              className="font-normal"
+                              onPress={useFilenameCode}
+                            >
+                              Use filename
+                            </Button>
+                          </div>
                         }
                       />
                     )}
