@@ -362,6 +362,23 @@ export interface paths {
         patch: operations["Files_editShare"];
         trace?: never;
     };
+    "/files/{id}/share/suggest-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Suggest an available shortlink code */
+        get: operations["Files_suggestShareCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/files/{id}/{name}": {
         parameters: {
             query?: never;
@@ -454,7 +471,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Download the entire share bundled as a zip archive (no body — implies the whole shared folder) */
+        get: operations["Shares_downloadZipDirect"];
         put?: never;
         /** Download multiple shared files bundled as a zip archive */
         post: operations["Shares_downloadZip"];
@@ -1080,6 +1098,17 @@ export interface components {
              * @description Expiration date and time of the share link
              */
             expiresAt?: string;
+            /**
+             * @description Shortlink code, if one is set on this share
+             * @example a1b2c3d
+             */
+            shortCode?: string;
+            /** @description File-type shortlinks only: force ALL user agents to the viewer, never raw bytes */
+            blockDirectLink?: boolean;
+            /** @description File-type shortlinks only: force ALL user agents to raw bytes, bypassing the viewer */
+            alwaysDirectLink?: boolean;
+            /** @description Folder-type shortlinks only: whether zip downloads are allowed for this share */
+            allowZipDownload?: boolean;
         };
         /** @description File share creation request */
         FileShareCreate: {
@@ -1093,6 +1122,19 @@ export interface components {
              * @description Share expiration date
              */
             expiresAt?: string;
+            /**
+             * @description Shortlink code to set. On create, omit for no shortlink, pass an empty string to auto-generate one, or pass a custom slug (4-32 chars, alphanumeric only, no dashes). On edit, omit to leave the existing shortlink state untouched; use clearShortCode to remove it instead of passing an empty string here.
+             * @example a1b2c3d
+             */
+            shortCode?: string;
+            /** @description Edit only: when true, removes any shortlink code from the share (reverting it to a standard share) regardless of what shortCode contains. Also resets blockDirectLink/alwaysDirectLink/allowZipDownload to false. */
+            clearShortCode?: boolean;
+            /** @description File-type shortlinks only: force ALL user agents to the viewer, never raw bytes. Mutually exclusive with alwaysDirectLink — setting both true makes this one win. */
+            blockDirectLink?: boolean;
+            /** @description File-type shortlinks only: force ALL user agents to raw bytes, bypassing the viewer entirely. Mutually exclusive with blockDirectLink. Not applicable to folder shares. */
+            alwaysDirectLink?: boolean;
+            /** @description Folder-type shortlinks only: allow zip downloads for this share. Also gates the Download-as-Zip action in the regular shared-folder viewer for this share, and — once enabled — unlocks blockDirectLink/alwaysDirectLink for this folder targeting the zip stream. */
+            allowZipDownload?: boolean;
         };
         FileShareInfo: {
             /**
@@ -1121,6 +1163,13 @@ export interface components {
              * @example false
              */
             protected: boolean;
+            /**
+             * @description Shortlink code, if one is set on this share
+             * @example a1b2c3d
+             */
+            shortCode?: string;
+            /** @description Folder-type shortlinks only: whether zip downloads are allowed for this share */
+            allowZipDownload?: boolean;
         };
         /** @description File update request */
         FileUpdate: {
@@ -1210,6 +1259,11 @@ export interface components {
              * @example true
              */
             zipDownloadEnabled: boolean;
+            /**
+             * @description Whether shortlink creation is available
+             * @example true
+             */
+            shortlinksEnabled: boolean;
         };
         /** @description User session information containing authentication and profile details */
         Session: {
@@ -1287,6 +1341,13 @@ export interface components {
              * @example securepass123
              */
             password: string;
+        };
+        ShortCodeSuggestion: {
+            /**
+             * @description An available, not-yet-reserved shortlink code candidate
+             * @example a1b2c3d
+             */
+            code: string;
         };
         Source: {
             /**
@@ -2325,6 +2386,37 @@ export interface operations {
             };
         };
     };
+    Files_suggestShareCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortCodeSuggestion"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     Files_stream: {
         parameters: {
             query?: {
@@ -2559,6 +2651,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    Shares_downloadZipDirect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Zip archive streaming response */
+            200: {
+                headers: {
+                    /** @description Archive attachment information */
+                    "Content-Disposition": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
+                };
             };
             /** @description An unexpected error response. */
             default: {
