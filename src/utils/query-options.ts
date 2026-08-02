@@ -40,8 +40,13 @@ export const serverConfigOptions = queryOptions({
 export const useServerConfig = () => {
   const { data } = useQuery(serverConfigOptions);
   // Unset/unreachable server config defaults to enabled, matching the
-  // backend's own default for files.enable-zip-download.
-  return { zipDownloadEnabled: data?.zipDownloadEnabled ?? true };
+  // backend's own default for files.enable-zip-download. shortlinksEnabled
+  // defaults to disabled instead, matching the backend's shortlinks.enabled
+  // default of false.
+  return {
+    zipDownloadEnabled: data?.zipDownloadEnabled ?? true,
+    shortlinksEnabled: data?.shortlinksEnabled ?? false,
+  };
 };
 
 export const fileQueries = {
