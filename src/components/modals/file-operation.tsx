@@ -1,4 +1,3 @@
-import { memo, useCallback, useEffect, useState } from "react";
 import { FbActions } from "@tw-material/file-browser";
 import {
   Button,
@@ -9,22 +8,29 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Radio,
+  RadioGroup,
   Switch,
 } from "@tw-material/react";
+import { memo, useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 
-import { useModalStore, useSettingsStore } from "@/utils/stores";
-import { Controller, useForm } from "react-hook-form";
-import { CustomActions } from "@/hooks/use-file-action";
 import { CopyButton } from "@/components/copy-button";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import IcRoundClose from "~icons/ic/round-close";
+import { CustomActions } from "@/hooks/use-file-action";
+import type { components } from "@/lib/api";
+import { $api, fetchClient } from "@/utils/api";
 import { filesize, getNextDate } from "@/utils/common";
-import ShowPasswordIcon from "~icons/mdi/eye-outline";
-import HidePasswordIcon from "~icons/mdi/eye-off-outline";
-import MdiProtectedOutline from "~icons/mdi/protected-outline";
-import { $api } from "@/utils/api";
+import { NetworkError } from "@/utils/fetch-throw";
+import { useServerConfig } from "@/utils/query-options";
+import { useModalStore, useSettingsStore } from "@/utils/stores";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Controller, useForm } from "react-hook-form";
+import IcRoundClose from "~icons/ic/round-close";
+import HidePasswordIcon from "~icons/mdi/eye-off-outline";
+import ShowPasswordIcon from "~icons/mdi/eye-outline";
+import MdiProtectedOutline from "~icons/mdi/protected-outline";
 
 type FileModalProps = {
   queryKey: any;
@@ -228,19 +234,50 @@ interface ShareFileDialogProps {
   handleClose: () => void;
 }
 
+type LinkBehavior = "default" | "viewer" | "direct";
+
 const defaultShareOptions = {
   expirationDate: "",
   password: "",
+  shortCode: "",
+  linkBehavior: "default" as LinkBehavior,
+  allowZipDownload: false,
+};
+
+// Client-side mirror of the server's shortCode charset (letters, numbers,
+// dots, dashes, underscores; must start/end alphanumeric) - turns a
+// filename into a candidate code instead of a random one. Anything outside
+// that charset collapses to a dash, leading/trailing separators are
+// stripped (the server rejects those outright), and the result is capped
+// at the server's 255-char bound.
+const slugifyFilename = (name: string) => {
+  const stripEdges = (s: string) => s.replace(/^[^A-Za-z0-9]+/, "").replace(/[^A-Za-z0-9]+$/, "");
+  const slug = stripEdges(name.replace(/[^A-Za-z0-9._-]+/g, "-"));
+  return stripEdges(slug.slice(0, 255));
+};
+
+// Reads the server's error message out of a failed $api mutation, matching
+// the pattern established in settings/account-tab.tsx.
+const shareErrorMessage = async (error: unknown) => {
+  if (error instanceof NetworkError) {
+    const errorData = (await error.data?.json()) as components["schemas"]["Error"];
+    return errorData.message.split(":").slice(-1)[0]!.trim();
+  }
+  return "An unknown error occurred.";
 };
 
 const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
   const file = useModalStore((state) => state.currentFile);
+  const isFolder = !!file.isDir;
 
   const queryClient = useQueryClient();
+  const { shortlinksEnabled, shortlinkDomain } = useServerConfig();
 
-  const { control, handleSubmit } = useForm({
+  const { control, handleSubmit, reset, watch } = useForm({
     defaultValues: defaultShareOptions,
   });
+
+  const allowZipDownload = watch("allowZipDownload");
 
   const shareQueryOptions = $api.queryOptions("get", "/files/{id}/share", {
     params: {
@@ -252,10 +289,25 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
 
   const { data, isLoading } = useQuery(shareQueryOptions);
 
+  const invalidateShare = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: shareQueryOptions.queryKey });
+    queryClient.invalidateQueries({ queryKey: ["Files_list", "shared"] });
+  }, [queryClient, shareQueryOptions.queryKey]);
+
   const createShare = $api.useMutation("post", "/files/{id}/share", {
+    onSuccess: invalidateShare,
+    onError: async (error) => {
+      toast.error(`Share failed: ${await shareErrorMessage(error)}`);
+    },
+  });
+
+  const editShare = $api.useMutation("patch", "/files/{id}/share", {
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: shareQueryOptions.queryKey });
-      queryClient.invalidateQueries({ queryKey: ["Files_list", "shared"] });
+      invalidateShare();
+      toast.success("Share settings updated");
+    },
+    onError: async (error) => {
+      toast.error(`Update failed: ${await shareErrorMessage(error)}`);
     },
   });
 
@@ -269,19 +321,44 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
 
   const [shareLink, setShareLink] = useState("");
 
+  const [shortlinkOn, setShortlinkOn] = useState(false);
+
+  const [shortLink, setShortLink] = useState("");
+
+  const [directLink, setDirectLink] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
+
+  const [suggesting, setSuggesting] = useState(false);
+
+  // Shared between create (POST) and update (PATCH): both send the same
+  // shortlink fields, built from the same form state.
+  const buildShortlinkPayload = useCallback(
+    (values: typeof defaultShareOptions): Partial<components["schemas"]["FileShareCreate"]> => {
+      if (!shortlinkOn) return {};
+      const payload: Partial<components["schemas"]["FileShareCreate"]> = {
+        shortCode: values.shortCode,
+      };
+      if (values.linkBehavior === "viewer") payload.blockDirectLink = true;
+      if (values.linkBehavior === "direct") payload.alwaysDirectLink = true;
+      if (isFolder) payload.allowZipDownload = values.allowZipDownload;
+      return payload;
+    },
+    [shortlinkOn, isFolder],
+  );
 
   const onShareChange = useCallback(() => {
     setSharingOn((prev) => {
       if (!prev) {
-        handleSubmit((data) => {
-          const payload = {} as Record<string, string>;
-          if (data.expirationDate) {
-            payload.expirationDate = `${data.expirationDate}${new Date().toISOString().slice(10)}`;
+        handleSubmit((values) => {
+          const payload: Partial<components["schemas"]["FileShareCreate"]> = {};
+          if (values.expirationDate) {
+            payload.expiresAt = `${values.expirationDate}${new Date().toISOString().slice(10)}`;
           }
-          if (data.password) {
-            payload.password = data.password;
+          if (values.password) {
+            payload.password = values.password;
           }
+          Object.assign(payload, buildShortlinkPayload(values));
           createShare.mutateAsync({
             params: {
               path: {
@@ -301,17 +378,92 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
           },
         });
         setShareLink("");
+        setShortLink("");
+        setDirectLink("");
       }
       return !prev;
     });
-  }, []);
+  }, [handleSubmit, buildShortlinkPayload, createShare, deleteShare, file.id]);
+
+  // Updates an already-created share in place via PATCH, rather than the
+  // destroy-and-recreate onShareChange does — recreating would mint a new
+  // share id and, worse, a new shortlink, defeating the point of a
+  // shortlink being a stable URL. Covers password/expiry too since it's
+  // the same underlying endpoint and form.
+  const onUpdateShare = handleSubmit((values) => {
+    const payload: Partial<components["schemas"]["FileShareCreate"]> = {
+      expiresAt: values.expirationDate
+        ? `${values.expirationDate}${new Date().toISOString().slice(10)}`
+        : undefined,
+      password: values.password || undefined,
+    };
+    if (shortlinkOn) {
+      Object.assign(payload, buildShortlinkPayload(values));
+    } else if (data?.shortCode) {
+      payload.clearShortCode = true;
+    }
+    editShare.mutateAsync({
+      params: {
+        path: {
+          id: file.id,
+        },
+      },
+      body: payload,
+    });
+  });
+
+  const suggestCode = useCallback(async () => {
+    setSuggesting(true);
+    try {
+      const res = await fetchClient.GET("/files/{id}/share/suggest-code", {
+        params: { path: { id: file.id } },
+      });
+      if (res.data) {
+        reset((prev) => ({ ...prev, shortCode: res.data!.code }));
+      }
+    } catch {
+      toast.error("Couldn't generate a code, try again.");
+    } finally {
+      setSuggesting(false);
+    }
+  }, [file.id, reset]);
+
+  // Unlike suggestCode, this doesn't check availability against the server
+  // - it's filling in a candidate, not reserving one - so a collision still
+  // surfaces the normal "code is already in use" error on submit.
+  const useFilenameCode = useCallback(() => {
+    const slug = slugifyFilename(file.name ?? "");
+    if (!slug) {
+      toast.error("This filename doesn't contain any usable characters for a code.");
+      return;
+    }
+    reset((prev) => ({ ...prev, shortCode: slug }));
+  }, [file.name, reset]);
 
   useEffect(() => {
     if (data) {
       setSharingOn(true);
       setShareLink(`${window.location.origin}/share/${data.id}`);
+      setShortlinkOn(!!data.shortCode);
+      setShortLink(data.shortCode ? `${window.location.origin}/share/${data.shortCode}` : "");
+      setDirectLink(
+        data.shortCode && shortlinkDomain
+          ? `${shortlinkDomain.replace(/\/+$/, "")}/${data.shortCode}`
+          : "",
+      );
+      reset({
+        expirationDate: "",
+        password: "",
+        shortCode: data.shortCode ?? "",
+        linkBehavior: data.blockDirectLink
+          ? "viewer"
+          : data.alwaysDirectLink
+            ? "direct"
+            : "default",
+        allowZipDownload: !!data.allowZipDownload,
+      });
     }
-  }, [data]);
+  }, [data, reset, shortlinkDomain]);
 
   return (
     <>
@@ -373,6 +525,113 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
               />
             )}
           />
+
+          {shortlinksEnabled && (
+            <>
+              <div className="col-span-6 flex items-center justify-between">
+                <div>
+                  <p className="text-lg font-medium">Shortlink</p>
+                  <p className="text-sm font-normal text-on-surface-variant">
+                    Give this share a short, memorable URL
+                  </p>
+                </div>
+                <Switch
+                  size="md"
+                  isSelected={shortlinkOn}
+                  onChange={() => setShortlinkOn((prev) => !prev)}
+                />
+              </div>
+
+              {shortlinkOn && (
+                <>
+                  <div className="col-span-6 xs:col-span-3">
+                    <p className="text-lg font-medium">Custom code</p>
+                    <p className="text-sm font-normal text-on-surface-variant">
+                      Leave blank to auto-generate one. Letters, numbers, dots, dashes and
+                      underscores — must start and end with a letter or number.
+                    </p>
+                  </div>
+                  <Controller
+                    name="shortCode"
+                    control={control}
+                    render={({ field, fieldState: { error } }) => (
+                      <Input
+                        size="lg"
+                        className="col-span-6 xs:col-span-3"
+                        variant="bordered"
+                        autoComplete="off"
+                        isInvalid={!!error}
+                        errorMessage={error?.message}
+                        maxLength={255}
+                        {...field}
+                        endContent={
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="text"
+                              className="font-normal"
+                              isDisabled={suggesting}
+                              onPress={suggestCode}
+                            >
+                              Suggest
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="text"
+                              className="font-normal"
+                              onPress={useFilenameCode}
+                            >
+                              Use filename
+                            </Button>
+                          </div>
+                        }
+                      />
+                    )}
+                  />
+
+                  {isFolder && (
+                    <div className="col-span-6 flex items-center justify-between">
+                      <p className="text-sm font-normal text-on-surface-variant">
+                        Allow zip download from this shortlink
+                      </p>
+                      <Controller
+                        name="allowZipDownload"
+                        control={control}
+                        render={({ field }) => (
+                          <Switch
+                            size="md"
+                            isSelected={field.value}
+                            onChange={() => field.onChange(!field.value)}
+                          />
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  {(!isFolder || allowZipDownload) && (
+                    <Controller
+                      name="linkBehavior"
+                      control={control}
+                      render={({ field }) => (
+                        <RadioGroup
+                          className="col-span-6"
+                          label="Visitor behavior"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <Radio value="default">Let the visitor's client decide</Radio>
+                          <Radio value="viewer">Always show the viewer</Radio>
+                          <Radio value="direct">
+                            {isFolder ? "Always download as zip" : "Always send the raw file"}
+                          </Radio>
+                        </RadioGroup>
+                      )}
+                    />
+                  )}
+                </>
+              )}
+            </>
+          )}
         </form>
         <Divider />
         <div className="flex justify-between">
@@ -383,16 +642,57 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
             <Switch size="md" isSelected={sharingOn} onChange={onShareChange} />
           </div>
         </div>
+        {sharingOn && (
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="text"
+              className="font-normal"
+              isDisabled={editShare.isPending}
+              onPress={() => onUpdateShare()}
+            >
+              Save changes
+            </Button>
+          </div>
+        )}
       </ModalBody>
       <ModalFooter>
-        <Input
-          isDisabled={isLoading || !data}
-          fullWidth
-          variant="bordered"
-          readOnly
-          value={shareLink}
-        />
-        <CopyButton value={shareLink} isDisabled={isLoading || !data} />
+        <div className="flex flex-col gap-3 w-full">
+          <div className="flex gap-2">
+            <Input
+              isDisabled={isLoading || !data}
+              fullWidth
+              variant="bordered"
+              readOnly
+              value={shareLink}
+            />
+            <CopyButton value={shareLink} isDisabled={isLoading || !data} />
+          </div>
+          {shortLink && (
+            <div className="flex gap-2">
+              <Input
+                isDisabled={isLoading}
+                fullWidth
+                variant="bordered"
+                readOnly
+                value={shortLink}
+              />
+              <CopyButton value={shortLink} isDisabled={isLoading} />
+            </div>
+          )}
+          {directLink && (
+            <div className="flex gap-2">
+              <Input
+                isDisabled={isLoading}
+                fullWidth
+                variant="bordered"
+                readOnly
+                value={directLink}
+              />
+              <CopyButton value={directLink} isDisabled={isLoading} />
+            </div>
+          )}
+        </div>
       </ModalFooter>
     </>
   );
@@ -467,10 +767,7 @@ const FileInfoDialog = memo(({ handleClose }: FileInfoDialogProps) => {
         <div className="flex flex-col">
           <InfoRow label="Name" value={currentFile.name} />
           <InfoRow label="Type" value={currentFile.mimeType || currentFile.type} />
-          <InfoRow
-            label="Size"
-            value={currentFile.size ? filesize(currentFile.size) : "—"}
-          />
+          <InfoRow label="Size" value={currentFile.size ? filesize(currentFile.size) : "—"} />
           {currentFile.path && <InfoRow label="Path" value={currentFile.path} />}
           <InfoRow label="Encrypted" value={currentFile.isEncrypted ? "Yes" : "No"} />
           <InfoRow label="Starred" value={currentFile.starred ? "Yes" : "No"} />
