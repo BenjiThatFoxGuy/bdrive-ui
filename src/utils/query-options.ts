@@ -42,10 +42,13 @@ export const useServerConfig = () => {
   // Unset/unreachable server config defaults to enabled, matching the
   // backend's own default for files.enable-zip-download. shortlinksEnabled
   // defaults to disabled instead, matching the backend's shortlinks.enabled
-  // default of false.
+  // default of false. shortlinkDomain is independent of shortlinksEnabled -
+  // the alt-domain listener can be running with no public domain assigned
+  // yet, so this is undefined rather than defaulted to anything.
   return {
     zipDownloadEnabled: data?.zipDownloadEnabled ?? true,
     shortlinksEnabled: data?.shortlinksEnabled ?? false,
+    shortlinkDomain: data?.shortlinkDomain,
   };
 };
 
