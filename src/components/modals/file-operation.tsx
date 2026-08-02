@@ -259,7 +259,7 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
   const isFolder = !!file.isDir;
 
   const queryClient = useQueryClient();
-  const { shortlinksEnabled } = useServerConfig();
+  const { shortlinksEnabled, shortlinkDomain } = useServerConfig();
 
   const { control, handleSubmit, reset, watch } = useForm({
     defaultValues: defaultShareOptions,
@@ -313,6 +313,8 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
 
   const [shortLink, setShortLink] = useState("");
 
+  const [directLink, setDirectLink] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
 
   const [suggesting, setSuggesting] = useState(false);
@@ -365,6 +367,7 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
         });
         setShareLink("");
         setShortLink("");
+        setDirectLink("");
       }
       return !prev;
     });
@@ -419,6 +422,11 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
       setShareLink(`${window.location.origin}/share/${data.id}`);
       setShortlinkOn(!!data.shortCode);
       setShortLink(data.shortCode ? `${window.location.origin}/share/${data.shortCode}` : "");
+      setDirectLink(
+        data.shortCode && shortlinkDomain
+          ? `${shortlinkDomain.replace(/\/+$/, "")}/${data.shortCode}`
+          : "",
+      );
       reset({
         expirationDate: "",
         password: "",
@@ -431,7 +439,7 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
         allowZipDownload: !!data.allowZipDownload,
       });
     }
-  }, [data, reset]);
+  }, [data, reset, shortlinkDomain]);
 
   return (
     <>
@@ -515,7 +523,8 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
                   <div className="col-span-6 xs:col-span-3">
                     <p className="text-lg font-medium">Custom code</p>
                     <p className="text-sm font-normal text-on-surface-variant">
-                      Leave blank to auto-generate one
+                      Leave blank to auto-generate one. Letters, numbers, dots, dashes and
+                      underscores — must start and end with a letter or number.
                     </p>
                   </div>
                   <Controller
@@ -635,6 +644,18 @@ const ShareFileDialog = memo(({ handleClose }: ShareFileDialogProps) => {
                 value={shortLink}
               />
               <CopyButton value={shortLink} isDisabled={isLoading} />
+            </div>
+          )}
+          {directLink && (
+            <div className="flex gap-2">
+              <Input
+                isDisabled={isLoading}
+                fullWidth
+                variant="bordered"
+                readOnly
+                value={directLink}
+              />
+              <CopyButton value={directLink} isDisabled={isLoading} />
             </div>
           )}
         </div>

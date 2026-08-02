@@ -1123,7 +1123,7 @@ export interface components {
              */
             expiresAt?: string;
             /**
-             * @description Shortlink code to set. On create, omit for no shortlink, pass an empty string to auto-generate one, or pass a custom slug (4-32 chars, alphanumeric only, no dashes). On edit, omit to leave the existing shortlink state untouched; use clearShortCode to remove it instead of passing an empty string here.
+             * @description Shortlink code to set. On create, omit for no shortlink, pass an empty string to auto-generate one, or pass a custom slug (4-32 chars: letters, numbers, dots, dashes and underscores, must start and end with a letter or number). On edit, omit to leave the existing shortlink state untouched; use clearShortCode to remove it instead of passing an empty string here.
              * @example a1b2c3d
              */
             shortCode?: string;
@@ -1264,6 +1264,11 @@ export interface components {
              * @example true
              */
             shortlinksEnabled: boolean;
+            /**
+             * @description Public-facing base URL of the standalone alt-domain shortlink listener (e.g. https://go.example.com), if the operator has configured one. Absent when unset, even if shortlinksEnabled is true - the listener can run on a bare address with no public domain assigned yet.
+             * @example https://go.example.com
+             */
+            shortlinkDomain?: string;
         };
         /** @description User session information containing authentication and profile details */
         Session: {
