@@ -11,6 +11,7 @@ export const preview = {
   office: "office",
   epub: "epub",
   pkpass: "pkpass",
+  psd: "psd",
 };
 
 export const extensions = {
@@ -80,6 +81,8 @@ export const extensions = {
   epub: preview.epub,
 
   pkpass: preview.pkpass,
+
+  psd: preview.psd,
 };
 
 export function getPreviewType(extension: string, flags?: { video?: boolean }): string | undefined {

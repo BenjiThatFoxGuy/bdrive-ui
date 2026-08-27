@@ -21,7 +21,7 @@
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
     //"noUncheckedIndexedAccess": true,
-    "types": ["unplugin-icons/types/react"],
+    "types": ["unplugin-icons/types/react", "@types/bun"],
     "paths": {
       "@/*": ["./src/*"],
       "tsdef": ["./node_modules/tsdef"]

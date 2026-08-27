@@ -42,6 +42,17 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    worker: {
+      // Must match `new Worker(..., { type: "module" })` in psd-client.ts; Vite
+      // defaults to iife, which contradicts it.
+      format: "es",
+    },
+    optimizeDeps: {
+      // ag-psd resolves to a CJS entry via its `browser` field and pulls in pako,
+      // also CJS. Vite's dependency scanner doesn't reliably reach modules that are
+      // only referenced from a worker via new URL(), so pre-bundle it explicitly.
+      include: ["ag-psd"],
+    },
     build: {
       minify: "terser",
       terserOptions: {
