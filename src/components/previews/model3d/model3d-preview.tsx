@@ -88,12 +88,60 @@ function frameObject(camera: THREE.PerspectiveCamera, controls: OrbitControls, o
   controls.update();
 }
 
+/** Convert any material to MeshStandardMaterial for uniform mode-switching. */
+function toStandardMaterial(src: THREE.Material): THREE.MeshStandardMaterial {
+  if (src instanceof THREE.MeshStandardMaterial) return src;
+
+  const std = new THREE.MeshStandardMaterial();
+
+  if ("color" in src) std.color = (src as any).color?.clone?.() ?? std.color;
+  if ("map" in src) std.map = (src as any).map ?? null;
+  if ("normalMap" in src) std.normalMap = (src as any).normalMap ?? null;
+  if ("alphaMap" in src) std.alphaMap = (src as any).alphaMap ?? null;
+  if ("emissive" in src) std.emissive = (src as any).emissive?.clone?.() ?? std.emissive;
+  if ("emissiveMap" in src) std.emissiveMap = (src as any).emissiveMap ?? null;
+  if ("emissiveIntensity" in src) std.emissiveIntensity = (src as any).emissiveIntensity ?? 1;
+  if ("specularMap" in src && (src as any).specularMap) {
+    // Use specular map as a rough approximation for roughness
+    std.roughness = 0.5;
+  }
+  if ("bumpMap" in src && (src as any).bumpMap) {
+    std.normalMap = (src as any).bumpMap;
+  }
+
+  std.transparent = src.transparent;
+  std.opacity = src.opacity;
+  std.side = src.side;
+  std.name = src.name;
+
+  return std;
+}
+
+/** Convert all materials in a model to MeshStandardMaterial for uniform handling. */
+function convertMaterials(model: THREE.Object3D): void {
+  model.traverse((child) => {
+    if (!(child instanceof THREE.Mesh) || !child.material) return;
+    if (Array.isArray(child.material)) {
+      child.material = child.material.map((m) =>
+        m instanceof THREE.MeshStandardMaterial ? m : toStandardMaterial(m)
+      );
+    } else if (!(child.material instanceof THREE.MeshStandardMaterial)) {
+      child.material = toStandardMaterial(child.material);
+    }
+  });
+}
+
 function getLoader(ext: string): ((url: string) => Promise<THREE.Object3D>) | null {
   switch (ext) {
     case "fbx":
       return async (url) => {
         const loader = new FBXLoader();
-        return loader.loadAsync(url);
+        // Set resource path so embedded textures resolve correctly
+        const basePath = url.substring(0, url.lastIndexOf("/") + 1);
+        loader.setResourcePath(basePath);
+        const model = await loader.loadAsync(url);
+        convertMaterials(model);
+        return model;
       };
     case "gltf":
     case "glb":
@@ -105,7 +153,9 @@ function getLoader(ext: string): ((url: string) => Promise<THREE.Object3D>) | nu
     case "obj":
       return async (url) => {
         const loader = new OBJLoader();
-        return loader.loadAsync(url);
+        const model = await loader.loadAsync(url);
+        convertMaterials(model);
+        return model;
       };
     case "stl":
       return async (url) => {
@@ -126,7 +176,9 @@ function getLoader(ext: string): ((url: string) => Promise<THREE.Object3D>) | nu
       return async (url) => {
         const loader = new ColladaLoader();
         const collada = await loader.loadAsync(url);
-        return collada!.scene;
+        const model = collada!.scene;
+        convertMaterials(model);
+        return model;
       };
     default:
       return null;
@@ -329,10 +381,32 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
         scene.add(model);
         modelRef.current = model;
 
-        // Snapshot materials before anything modifies them
-        snapshotMaterials(model);
-
         setModelInfo(countGeometry(model));
+
+        // Snapshot materials after a short delay so async texture loading
+        // (especially in FBX files) has time to complete. Without this,
+        // the snapshot captures materials with null texture maps.
+        const doSnapshot = () => {
+          snapshotMaterials(model);
+        };
+        // Check if any textures are still loading; if so, wait a frame
+        let hasLoadingTextures = false;
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            for (const m of mats) {
+              if ((m as any).map?.image === undefined && (m as any).map !== null) {
+                hasLoadingTextures = true;
+              }
+            }
+          }
+        });
+        if (hasLoadingTextures) {
+          // Give textures time to decode
+          setTimeout(doSnapshot, 500);
+        } else {
+          doSnapshot();
+        }
         frameObject(camera, controls, model);
 
         // Scale grid to model
