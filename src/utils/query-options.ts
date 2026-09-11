@@ -177,24 +177,10 @@ const fetchFiles =
 
 const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], sessionHash: string) => {
   return files.map((item): FileData => {
-    // Zip files act as virtual folders - they're navigable.
+    // Zip files are browsable as virtual folders on double-click,
+    // but remain regular files for downloads, sharing, etc.
     const ext = getExtension(item.name);
     const isZipLike = ext === "zip" && item.mimeType !== "drive/folder";
-    if (isZipLike) {
-      return {
-        id: item.id!,
-        name: item.name,
-        type: item.type,
-        mimeType: item.mimeType,
-        size: item.size ? Number(item.size) : 0,
-        modDate: item.updatedAt,
-        isDir: true, // treat as folder for navigation
-        starred: item.starred,
-        parentId: item.parentId,
-        path: item.path,
-        isZip: true, // custom flag for zip virtual folder
-      };
-    }
     if (item.mimeType === "drive/folder") {
       return {
         id: item.id!,
@@ -241,6 +227,7 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
       path: item.path,
       hash: item.hash,
       referencedFileId: item.referencedFileId,
+      ...(isZipLike && { isZip: true }),
     };
   });
 };
