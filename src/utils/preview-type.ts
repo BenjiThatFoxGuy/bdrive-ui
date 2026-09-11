@@ -12,6 +12,7 @@ export const preview = {
   epub: "epub",
   pkpass: "pkpass",
   psd: "psd",
+  model3d: "model3d",
 };
 
 export const extensions = {
@@ -83,6 +84,18 @@ export const extensions = {
   pkpass: preview.pkpass,
 
   psd: preview.psd,
+
+  fbx: preview.model3d,
+  gltf: preview.model3d,
+  glb: preview.model3d,
+  obj: preview.model3d,
+  stl: preview.model3d,
+  "3ds": preview.model3d,
+  ply: preview.model3d,
+  dae: preview.model3d,
+  wrl: preview.model3d,
+  "3mf": preview.model3d,
+  usdz: preview.model3d,
 };
 
 export function getPreviewType(extension: string, flags?: { video?: boolean }): string | undefined {

@@ -38,6 +38,8 @@ const PkPassPreview = lazy(() => import("@/components/previews/pkpass/pkpass-pre
 
 const PsdPreview = lazy(() => import("@/components/previews/psd/psd-preview"));
 
+const Model3DPreview = lazy(() => import("@/components/previews/model3d/model3d-preview"));
+
 const findNext = (files: FileData[], fileId: string, previewType: string) => {
   let index = -1;
   let firstPreviewIndex = -1;
@@ -250,6 +252,13 @@ export default memo(function PreviewModal({
           return (
             <Suspense fallback={<Loader />}>
               <PsdPreview assetUrl={assetUrl} size={size ?? 0} />
+            </Suspense>
+          );
+
+        case preview.model3d:
+          return (
+            <Suspense fallback={<Loader />}>
+              <Model3DPreview assetUrl={assetUrl} name={name} />
             </Suspense>
           );
 
