@@ -185,6 +185,25 @@ function getLoader(ext: string): ((url: string) => Promise<THREE.Object3D>) | nu
   }
 }
 
+/** Check if any mesh in the model has a texture map. */
+function hasTextures(object: THREE.Object3D): boolean {
+  let found = false;
+  object.traverse((child) => {
+    if (found) return;
+    if (child instanceof THREE.Mesh) {
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      for (const m of mats) {
+        if ((m as any).map || (m as any).emissiveMap || (m as any).normalMap ||
+            (m as any).specularMap || (m as any).bumpMap || (m as any).aoMap) {
+          found = true;
+          return;
+        }
+      }
+    }
+  });
+  return found;
+}
+
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -328,17 +347,22 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
     controls.dampingFactor = 0.08;
     controlsRef.current = controls;
 
-    // Lighting
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    // Lighting — strong enough to properly illuminate models
+    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambient);
     ambientRef.current = ambient;
 
-    const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+    const directional = new THREE.DirectionalLight(0xffffff, 2.0);
     directional.position.copy(sphericalToCartesian(45, 60, 10));
     scene.add(directional);
     directionalRef.current = directional;
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
+    // Fill light from opposite direction to reduce harsh shadows
+    const fill = new THREE.DirectionalLight(0xffffff, 0.6);
+    fill.position.copy(sphericalToCartesian(225, 30, 10));
+    scene.add(fill);
+
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
     scene.add(hemi);
 
     // Grid
@@ -409,6 +433,19 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
         }
         frameObject(camera, controls, model);
 
+        // Auto-detect: default to "lit" if model has no textures
+        const checkTextures = () => {
+          if (!hasTextures(model)) {
+            setRenderMode("lit");
+          }
+        };
+        if (hasLoadingTextures) {
+          // Re-check after textures have had time to load
+          setTimeout(checkTextures, 600);
+        } else {
+          checkTextures();
+        }
+
         // Scale grid to model
         const box = new THREE.Box3().setFromObject(model);
         const size = new THREE.Vector3();
@@ -440,10 +477,10 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
     };
   }, [assetUrl, ext, snapshotMaterials]);
 
-  // Update lighting intensity
+  // Update lighting intensity — slider is a multiplier on the base values
   useEffect(() => {
-    if (ambientRef.current) ambientRef.current.intensity = lightIntensity * 0.6;
-    if (directionalRef.current) directionalRef.current.intensity = lightIntensity * 0.8;
+    if (ambientRef.current) ambientRef.current.intensity = lightIntensity * 0.7;
+    if (directionalRef.current) directionalRef.current.intensity = lightIntensity * 2.0;
   }, [lightIntensity]);
 
   // Update light direction
