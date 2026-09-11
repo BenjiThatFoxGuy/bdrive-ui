@@ -20,16 +20,33 @@ export interface SettingsState {
 }
 
 async function fetchServerThumbnailSettings(): Promise<Partial<Settings>> {
+  const result: Partial<Settings> = {};
+
+  // Primary source: server config (YAML/TOML, always available including for guests)
   try {
-    const res = await fetch("/api/settings/thumbnail");
-    if (!res.ok) return {};
-    const data = await res.json();
-    const result: Partial<Settings> = {};
-    if (data.resizerHost !== undefined) result.resizerHost = data.resizerHost;
-    return result;
+    const configRes = await fetch("/config");
+    if (configRes.ok) {
+      const config = await configRes.json();
+      if (config.resizerHost) result.resizerHost = config.resizerHost;
+    }
   } catch {
-    return {};
+    // fall through to DB settings
   }
+
+  // Secondary source: DB-persisted settings (admin-set, authenticated only)
+  if (!result.resizerHost) {
+    try {
+      const res = await fetch("/api/settings/thumbnail");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.resizerHost) result.resizerHost = data.resizerHost;
+      }
+    } catch {
+      // fall through to localStorage (handled by zustand persist)
+    }
+  }
+
+  return result;
 }
 
 async function saveServerThumbnailSettings(settings: Settings): Promise<void> {
