@@ -76,6 +76,8 @@ export type FileListParams = {
   view: BrowseView;
   params: Exclude<operations["Files_list"]["parameters"]["query"], undefined> & {
     selectId?: string;
+    zipId?: string;
+    zipPath?: string;
   };
 };
 

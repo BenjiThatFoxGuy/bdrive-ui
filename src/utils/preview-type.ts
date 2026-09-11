@@ -13,6 +13,7 @@ export const preview = {
   pkpass: "pkpass",
   psd: "psd",
   model3d: "model3d",
+  zip: "zip",
 };
 
 export const extensions = {
@@ -84,6 +85,12 @@ export const extensions = {
   pkpass: preview.pkpass,
 
   psd: preview.psd,
+
+  zip: preview.zip,
+  "7z": preview.zip,
+  rar: preview.zip,
+  tar: preview.zip,
+  gz: preview.zip,
 
   fbx: preview.model3d,
   gltf: preview.model3d,

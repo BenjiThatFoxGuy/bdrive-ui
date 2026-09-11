@@ -128,6 +128,29 @@ const fetchFiles =
       query.operation = "find";
       query.type = "file";
     } else if (view === "browse") {
+      // Zip virtual folder browsing.
+      if (params?.zipId) {
+        const zipPath = params?.zipPath ?? "/";
+        const res = await fetch(`/api/files/zip/${params.zipId}/list?path=${encodeURIComponent(zipPath)}`, { signal });
+        if (!res.ok) throw new Error("Failed to browse zip");
+        const data = await res.json();
+        // Map zip entries to the FileList shape.
+        return {
+          items: data.entries.map((e: any) => ({
+            id: `${params.zipId}:${e.path}`,
+            name: e.name,
+            type: e.isDir ? "folder" : "file",
+            mimeType: e.isDir ? "drive/folder" : (e.mimeType || "application/octet-stream"),
+            size: String(e.size || 0),
+            updatedAt: e.modified,
+            parentId: params.zipId,
+            path: e.path,
+            _zipId: params.zipId,
+            _zipEntry: true,
+          })),
+          meta: { currentPage: 1, totalPages: 1, totalFiles: data.total, pageSize: data.total },
+        } as any;
+      }
       query.parentId = params?.parentId;
       if (params?.category) {
         query.operation = "find";
@@ -154,6 +177,24 @@ const fetchFiles =
 
 const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], sessionHash: string) => {
   return files.map((item): FileData => {
+    // Zip files act as virtual folders - they're navigable.
+    const ext = getExtension(item.name);
+    const isZipLike = ext === "zip" && item.mimeType !== "drive/folder";
+    if (isZipLike) {
+      return {
+        id: item.id!,
+        name: item.name,
+        type: item.type,
+        mimeType: item.mimeType,
+        size: item.size ? Number(item.size) : 0,
+        modDate: item.updatedAt,
+        isDir: true, // treat as folder for navigation
+        starred: item.starred,
+        parentId: item.parentId,
+        path: item.path,
+        isZip: true, // custom flag for zip virtual folder
+      };
+    }
     if (item.mimeType === "drive/folder") {
       return {
         id: item.id!,
