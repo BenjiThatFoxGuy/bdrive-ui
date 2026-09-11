@@ -98,7 +98,7 @@ export const shareQueries = {
           ? undefined
           : lastPage?.meta.currentPage! + 1,
       select: (data) =>
-        data.pages.flatMap((page) => (page?.items ? mapFilesToFb(page?.items, "") : [])),
+        data.pages.flatMap((page) => (page?.items ? mapFilesToFb(page?.items, "", params.id) : [])),
     }),
 };
 
@@ -177,7 +177,7 @@ const fetchFiles =
     ).data;
   };
 
-const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], sessionHash: string) => {
+const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], sessionHash: string, shareId?: string) => {
   return files.map((item): FileData => {
     // Zip files are browsable as virtual folders on double-click,
     // but remain regular files for downloads, sharing, etc.
@@ -208,10 +208,16 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
     let thumbnailUrl = "";
     if (previewType === "image") {
       if (settings.resizerHost) {
-        const url = mediaUrl(item.id!, item.name, "", sessionHash);
-        thumbnailUrl = settings.resizerHost
-          ? `${settings.resizerHost}/insecure/w:360/plain/${encodeURIComponent(url)}`
-          : "";
+        let url: string;
+        if (shareId) {
+          // Share files use a public endpoint that imgproxy can access without auth
+          const shareUrl = new URL(window.location.origin);
+          shareUrl.pathname = `/api/shares/${shareId}/files/${item.id!}/${encodeURIComponent(item.name)}`;
+          url = shareUrl.toString();
+        } else {
+          url = mediaUrl(item.id!, item.name, "", sessionHash);
+        }
+        thumbnailUrl = `${settings.resizerHost}/insecure/w:360/plain/${encodeURIComponent(url)}`;
       }
     }
     return {
