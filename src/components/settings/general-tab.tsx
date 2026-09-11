@@ -19,7 +19,7 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 export const GeneralTab = memo(() => {
-  const { settings, updateSetting, resetSettings } = useSettingsStore();
+  const { settings, updateSetting, resetSettings, isServerManaged } = useSettingsStore();
 
   const categories = ["upload", "display", "other"] as const;
 
@@ -58,14 +58,18 @@ export const GeneralTab = memo(() => {
               </div>
             </div>
             <div className="space-y-6">
-              {fields.map((field) => (
-                <SettingsField
-                  key={field.key}
-                  config={field}
-                  value={settings[field.key]}
-                  onChange={(value) => handleFieldChange(field.key, value)}
-                />
-              ))}
+              {fields.map((field) => {
+                const managed = isServerManaged(field.key as keyof typeof settings);
+                return (
+                  <SettingsField
+                    key={field.key}
+                    config={managed ? { ...field, description: `${field.description} — set in server config` } : field}
+                    value={settings[field.key]}
+                    onChange={(value) => handleFieldChange(field.key, value)}
+                    disabled={managed}
+                  />
+                );
+              })}
             </div>
           </div>
         );

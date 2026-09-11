@@ -13,21 +13,33 @@ const SERVER_SYNCED_KEYS: (keyof Settings)[] = ["resizerHost"];
 export interface SettingsState {
   settings: Settings;
   serverLoaded: boolean;
+  /** Keys whose values were set by the server config (YAML/CLI) and should be read-only in the UI. */
+  serverManagedKeys: Set<keyof Settings>;
   updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
   updateSettings: (newSettings: Partial<Settings>) => void;
   resetSettings: () => void;
   loadServerSettings: () => Promise<void>;
+  isServerManaged: (key: keyof Settings) => boolean;
 }
 
-async function fetchServerThumbnailSettings(): Promise<Partial<Settings>> {
+interface ServerSettingsResult {
+  settings: Partial<Settings>;
+  managedKeys: Set<keyof Settings>;
+}
+
+async function fetchServerThumbnailSettings(): Promise<ServerSettingsResult> {
   const result: Partial<Settings> = {};
+  const managedKeys = new Set<keyof Settings>();
 
   // Primary source: server config (YAML/TOML, always available including for guests)
   try {
     const configRes = await fetch("/config");
     if (configRes.ok) {
       const config = await configRes.json();
-      if (config.resizerHost) result.resizerHost = config.resizerHost;
+      if (config.resizerHost) {
+        result.resizerHost = config.resizerHost;
+        managedKeys.add("resizerHost");
+      }
     }
   } catch {
     // fall through to DB settings
@@ -46,7 +58,7 @@ async function fetchServerThumbnailSettings(): Promise<Partial<Settings>> {
     }
   }
 
-  return result;
+  return { settings: result, managedKeys };
 }
 
 async function saveServerThumbnailSettings(settings: Settings): Promise<void> {
@@ -70,6 +82,8 @@ export const useSettingsStore = create<SettingsState>()(
     immer((set, get) => ({
       settings,
       serverLoaded: false,
+      serverManagedKeys: new Set<keyof Settings>(),
+      isServerManaged: (key: keyof Settings) => get().serverManagedKeys.has(key),
       updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => {
         set((state) => {
           state.settings[key] = value;
@@ -97,22 +111,19 @@ export const useSettingsStore = create<SettingsState>()(
           state.settings = { ...settings };
         }),
       loadServerSettings: async () => {
-        const serverSettings = await fetchServerThumbnailSettings();
-        if (Object.keys(serverSettings).length > 0) {
-          set((state) => {
+        const { settings: serverSettings, managedKeys } = await fetchServerThumbnailSettings();
+        set((state) => {
+          if (Object.keys(serverSettings).length > 0) {
             // Server values take priority for synced keys
             for (const key of SERVER_SYNCED_KEYS) {
               if (key in serverSettings) {
                 (state.settings as any)[key] = (serverSettings as any)[key];
               }
             }
-            state.serverLoaded = true;
-          });
-        } else {
-          set((state) => {
-            state.serverLoaded = true;
-          });
-        }
+          }
+          state.serverManagedKeys = managedKeys;
+          state.serverLoaded = true;
+        });
       },
     })),
     {
