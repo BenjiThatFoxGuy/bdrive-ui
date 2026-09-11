@@ -36,6 +36,8 @@ const EpubPreview = lazy(() => import("@/components/previews/epub-preview"));
 
 const PkPassPreview = lazy(() => import("@/components/previews/pkpass/pkpass-preview"));
 
+const PsdPreview = lazy(() => import("@/components/previews/psd/psd-preview"));
+
 const findNext = (files: FileData[], fileId: string, previewType: string) => {
   let index = -1;
   let firstPreviewIndex = -1;
@@ -135,7 +137,7 @@ export default memo(function PreviewModal({
     })),
   );
 
-  const { id, name, previewType } = currentFile;
+  const { id, name, previewType, size } = currentFile;
 
   const { icon } = useIconData({ id, name, isDir: false });
 
@@ -242,6 +244,12 @@ export default memo(function PreviewModal({
           return (
             <Suspense fallback={<Loader />}>
               <PkPassPreview assetUrl={assetUrl} />
+            </Suspense>
+          );
+        case preview.psd:
+          return (
+            <Suspense fallback={<Loader />}>
+              <PsdPreview assetUrl={assetUrl} size={size ?? 0} />
             </Suspense>
           );
 
