@@ -78,6 +78,7 @@ export type FileListParams = {
     selectId?: string;
     zipId?: string;
     zipPath?: string;
+    archiveType?: string;
   };
 };
 

@@ -180,12 +180,13 @@ export const useFileAction = (
 
           const fileToOpen = targetFile ?? files[0];
 
-          // Zip virtual folder: double-click navigates into contents.
-          // Zip stays a file (downloadable), but opens like a folder.
+          // Archive virtual folder: double-click navigates into contents.
+          // Archive stays a file (downloadable), but opens like a folder.
           if (fileToOpen && (fileToOpen as any).isZip) {
+            const ext = fileToOpen.name?.split(".").pop()?.toLowerCase() ?? "zip";
             const qparams: FileListParams = {
               view: "browse",
-              params: { zipId: fileToOpen.id, zipPath: "/" },
+              params: { zipId: fileToOpen.id, zipPath: "/", archiveType: ext } as any,
             };
             setSearchParams(qparams.params);
           } else if (fileToOpen && FileHelper.isDirectory(fileToOpen)) {
@@ -465,12 +466,13 @@ export const useShareFileAction = (params: ShareListParams) => {
 
           const fileToOpen = targetFile ?? files[0];
 
-          // Zip virtual folder in share view
+          // Archive virtual folder in share view
           if (fileToOpen && (fileToOpen as any).isZip) {
+            const ext = fileToOpen.name?.split(".").pop()?.toLowerCase() ?? "zip";
             navigate({
               to: "/share/$id",
               params: { id: params.id },
-              search: { zipId: fileToOpen.id, zipPath: "/" },
+              search: { zipId: fileToOpen.id, zipPath: "/", archiveType: ext } as any,
             });
           } else if (fileToOpen && FileHelper.isDirectory(fileToOpen)) {
             const basePath = params?.path ?? "/";

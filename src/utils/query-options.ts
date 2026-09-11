@@ -128,11 +128,13 @@ const fetchFiles =
       query.operation = "find";
       query.type = "file";
     } else if (view === "browse") {
-      // Zip virtual folder browsing.
+      // Archive virtual folder browsing (zip, unitypackage).
       if (params?.zipId) {
         const zipPath = params?.zipPath ?? "/";
-        const res = await fetch(`/api/files/zip/${params.zipId}/list?path=${encodeURIComponent(zipPath)}`, { signal });
-        if (!res.ok) throw new Error("Failed to browse zip");
+        const archiveType = (params as any)?.archiveType ?? "zip";
+        const endpoint = archiveType === "unitypackage" ? "unitypkg" : "zip";
+        const res = await fetch(`/api/files/${endpoint}/${params.zipId}/list?path=${encodeURIComponent(zipPath)}`, { signal });
+        if (!res.ok) throw new Error("Failed to browse archive");
         const data = await res.json();
         // Map zip entries to the FileList shape.
         return {
@@ -180,7 +182,8 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
     // Zip files are browsable as virtual folders on double-click,
     // but remain regular files for downloads, sharing, etc.
     const ext = getExtension(item.name);
-    const isZipLike = ext === "zip" && item.mimeType !== "drive/folder";
+    const browsableArchiveExts = ["zip", "unitypackage"];
+    const isZipLike = browsableArchiveExts.includes(ext) && item.mimeType !== "drive/folder";
     if (item.mimeType === "drive/folder") {
       return {
         id: item.id!,
