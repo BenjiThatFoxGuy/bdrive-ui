@@ -40,6 +40,7 @@
     "react-reader": "^2.0.12",
     "react-top-loading-bar": "^2.3.1",
     "react-use-websocket": "^4.11.1",
+    "three": "^0.186.0",
     "use-breakpoint": "^4.0.5",
     "usehooks-ts": "^3.1.0",
     "zustand": "5.0.2"
@@ -57,6 +58,7 @@
     "@types/node": "22.10.2",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "openapi-typescript": "^7.4.4",
