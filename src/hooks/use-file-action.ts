@@ -559,7 +559,7 @@ export const useShareFileAction = (params: ShareListParams) => {
           // the SPA shows the login screen and resolves after login.
           (async () => {
             try {
-              const res = await fetch("/api/files/resolve-token", {
+              const res = await fetch("/api/resolve/token", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ fileId: file.id }),
