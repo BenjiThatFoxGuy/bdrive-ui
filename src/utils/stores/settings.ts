@@ -33,7 +33,7 @@ async function fetchServerThumbnailSettings(): Promise<ServerSettingsResult> {
 
   // Primary source: server config (YAML/TOML, always available including for guests)
   try {
-    const configRes = await fetch("/config");
+    const configRes = await fetch("/api/config");
     if (configRes.ok) {
       const config = await configRes.json();
       if (config.resizerHost) {
