@@ -183,7 +183,13 @@ export const useFileAction = (
           if (fileToOpen && FileHelper.isDirectory(fileToOpen)) {
             let qparams: FileListParams;
 
-            if (view === "my-drive") {
+            // Zip virtual folder: navigate into the zip's contents.
+            if (fileToOpen.isZip) {
+              qparams = {
+                view: "browse",
+                params: { zipId: fileToOpen.id, zipPath: "/" },
+              };
+            } else if (view === "my-drive") {
               const basePath = search?.path ?? "/";
               qparams = {
                 view,
