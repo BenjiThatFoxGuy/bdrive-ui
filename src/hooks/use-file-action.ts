@@ -613,5 +613,6 @@ export const sharefileActions = Object.keys(CustomActions)
   .filter(
     (action) =>
       action.id !== CustomActions.ShareFiles.id &&
-      action.id !== CustomActions.ShowFileInfo.id,
+      action.id !== CustomActions.ShowFileInfo.id &&
+      action.id !== CustomActions.ShowInFolder.id,
   );
