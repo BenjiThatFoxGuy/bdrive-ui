@@ -1,9 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Slider, Spinner, Tooltip } from "@tw-material/react";
+import { Button, Spinner } from "@tw-material/react";
 import clsx from "clsx";
 
 import { center } from "@/utils/classes";
-import fetchThrow from "@/utils/fetch-throw";
 import { getExtension } from "@/utils/common";
 
 import * as THREE from "three";
@@ -15,7 +14,7 @@ import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
 import { ColladaLoader } from "three/addons/loaders/ColladaLoader.js";
 
-type RenderMode = "lit" | "unlit" | "wireframe";
+type RenderMode = "textured" | "lit" | "unlit" | "wireframe";
 type BgMode = "dark" | "light" | "transparent";
 
 interface ModelInfo {
@@ -140,6 +139,17 @@ function formatNumber(n: number): string {
   return String(n);
 }
 
+/** Convert spherical (azimuth, elevation) in degrees to a unit-sphere position. */
+function sphericalToCartesian(azimuthDeg: number, elevationDeg: number, radius: number): THREE.Vector3 {
+  const az = (azimuthDeg * Math.PI) / 180;
+  const el = (elevationDeg * Math.PI) / 180;
+  return new THREE.Vector3(
+    radius * Math.cos(el) * Math.sin(az),
+    radius * Math.sin(el),
+    radius * Math.cos(el) * Math.cos(az),
+  );
+}
+
 function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -151,58 +161,88 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
   const directionalRef = useRef<THREE.DirectionalLight>();
   const gridRef = useRef<THREE.GridHelper>();
   const animFrameRef = useRef<number>();
+
+  // Deep-clone each mesh's material at load time so we can always restore it.
   const originalMaterials = useRef<Map<number, THREE.Material | THREE.Material[]>>(new Map());
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
-  const [renderMode, setRenderMode] = useState<RenderMode>("lit");
-  const [bgMode, setBgMode] = useState<BgMode>("dark");
+  const [renderMode, setRenderMode] = useState<RenderMode>("textured");
+  const [bgMode, setBgMode] = useState<BgMode>("transparent");
   const [lightIntensity, setLightIntensity] = useState(1.0);
+  const [lightAzimuth, setLightAzimuth] = useState(45);
+  const [lightElevation, setLightElevation] = useState(60);
   const [autoRotate, setAutoRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const ext = useMemo(() => getExtension(name).toLowerCase(), [name]);
+
+  /** Snapshot every mesh's material so we can restore it later. */
+  const snapshotMaterials = useCallback((model: THREE.Object3D) => {
+    originalMaterials.current.clear();
+    model.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material) {
+        if (Array.isArray(child.material)) {
+          originalMaterials.current.set(child.id, child.material.map((m) => m.clone()));
+        } else {
+          originalMaterials.current.set(child.id, child.material.clone());
+        }
+      }
+    });
+  }, []);
 
   const applyRenderMode = useCallback((mode: RenderMode) => {
     const model = modelRef.current;
     if (!model) return;
 
     model.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        if (mode === "wireframe") {
-          if (!originalMaterials.current.has(child.id)) {
-            originalMaterials.current.set(child.id, child.material);
-          }
+      if (!(child instanceof THREE.Mesh)) return;
+
+      const saved = originalMaterials.current.get(child.id);
+
+      switch (mode) {
+        case "wireframe":
           child.material = new THREE.MeshBasicMaterial({
             wireframe: true,
             color: 0x00ff88,
           });
-        } else if (mode === "unlit") {
-          if (originalMaterials.current.has(child.id)) {
-            child.material = originalMaterials.current.get(child.id)!;
+          break;
+
+        case "unlit":
+          // Restore from snapshot then force emissive so lights don't matter.
+          if (saved) {
+            child.material = Array.isArray(saved)
+              ? saved.map((m) => m.clone())
+              : saved.clone();
           }
-          if (Array.isArray(child.material)) {
-            child.material.forEach((m) => {
-              if (m instanceof THREE.MeshStandardMaterial || m instanceof THREE.MeshPhongMaterial) {
-                (m as any).emissive = (m as any).color?.clone() ?? new THREE.Color(0xaaaaaa);
-                (m as any).emissiveIntensity = 0.5;
+          (Array.isArray(child.material) ? child.material : [child.material]).forEach((m) => {
+            if ("emissive" in m && "emissiveIntensity" in m) {
+              const std = m as THREE.MeshStandardMaterial;
+              if (std.map) {
+                // If there's a texture, use white emissive so the texture shows at full brightness
+                std.emissive = new THREE.Color(0xffffff);
+                std.emissiveMap = std.map;
+                std.emissiveIntensity = 1.0;
+              } else {
+                std.emissive = std.color?.clone() ?? new THREE.Color(0xaaaaaa);
+                std.emissiveIntensity = 0.5;
               }
-            });
-          } else {
-            const m = child.material;
-            if (m instanceof THREE.MeshStandardMaterial || m instanceof THREE.MeshPhongMaterial) {
-              (m as any).emissive = (m as any).color?.clone() ?? new THREE.Color(0xaaaaaa);
-              (m as any).emissiveIntensity = 0.5;
+              std.needsUpdate = true;
             }
+          });
+          break;
+
+        case "textured":
+        case "lit":
+        default:
+          // Restore from snapshot (clean copy).
+          if (saved) {
+            child.material = Array.isArray(saved)
+              ? saved.map((m) => m.clone())
+              : saved.clone();
           }
-        } else {
-          // lit: restore original
-          if (originalMaterials.current.has(child.id)) {
-            child.material = originalMaterials.current.get(child.id)!;
-            originalMaterials.current.delete(child.id);
-          }
-        }
+          break;
       }
     });
   }, []);
@@ -222,7 +262,9 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
     rendererRef.current = renderer;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(BG_COLORS[bgMode]);
+    // Default to transparent
+    scene.background = null;
+    renderer.setClearColor(0x000000, 0);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 10000);
@@ -240,7 +282,7 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
     ambientRef.current = ambient;
 
     const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-    directional.position.set(5, 10, 5);
+    directional.position.copy(sphericalToCartesian(45, 60, 10));
     scene.add(directional);
     directionalRef.current = directional;
 
@@ -248,7 +290,7 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
     scene.add(hemi);
 
     // Grid
-    const grid = new THREE.GridHelper(20, 20, ...GRID_COLORS[bgMode]);
+    const grid = new THREE.GridHelper(20, 20, ...GRID_COLORS.transparent);
     (grid.material as THREE.Material).opacity = 0.4;
     (grid.material as THREE.Material).transparent = true;
     scene.add(grid);
@@ -286,6 +328,10 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
       .then((model) => {
         scene.add(model);
         modelRef.current = model;
+
+        // Snapshot materials before anything modifies them
+        snapshotMaterials(model);
+
         setModelInfo(countGeometry(model));
         frameObject(camera, controls, model);
 
@@ -296,10 +342,9 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
         const maxDim = Math.max(size.x, size.y, size.z);
         const gridSize = Math.ceil(maxDim * 3);
         scene.remove(grid);
-        const newGrid = new THREE.GridHelper(gridSize, Math.min(gridSize, 40), ...GRID_COLORS[bgMode]);
+        const newGrid = new THREE.GridHelper(gridSize, Math.min(gridSize, 40), ...GRID_COLORS.transparent);
         (newGrid.material as THREE.Material).opacity = 0.4;
         (newGrid.material as THREE.Material).transparent = true;
-        // Position grid at the bottom of the model
         newGrid.position.y = box.min.y;
         scene.add(newGrid);
         gridRef.current = newGrid;
@@ -319,13 +364,20 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
       renderer.dispose();
       container.removeChild(renderer.domElement);
     };
-  }, [assetUrl, ext]);
+  }, [assetUrl, ext, snapshotMaterials]);
 
   // Update lighting intensity
   useEffect(() => {
     if (ambientRef.current) ambientRef.current.intensity = lightIntensity * 0.6;
     if (directionalRef.current) directionalRef.current.intensity = lightIntensity * 0.8;
   }, [lightIntensity]);
+
+  // Update light direction
+  useEffect(() => {
+    if (directionalRef.current) {
+      directionalRef.current.position.copy(sphericalToCartesian(lightAzimuth, lightElevation, 10));
+    }
+  }, [lightAzimuth, lightElevation]);
 
   // Update background
   useEffect(() => {
@@ -377,6 +429,9 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
     }
   }, []);
 
+  // Whether the current mode uses lighting (show light controls)
+  const showLightControls = renderMode === "lit" || renderMode === "textured";
+
   if (error) {
     return (
       <div className={clsx(center, "size-full flex-col gap-2 text-on-surface-variant")}>
@@ -392,7 +447,7 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
       <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-low rounded-t-lg flex-wrap">
         {/* Render mode */}
         <div className="flex items-center gap-1 border-r border-outline-variant pr-2">
-          {(["lit", "unlit", "wireframe"] as RenderMode[]).map((mode) => (
+          {(["textured", "lit", "unlit", "wireframe"] as RenderMode[]).map((mode) => (
             <Button
               key={mode}
               size="sm"
@@ -420,19 +475,43 @@ function Model3DPreview({ assetUrl, name }: Model3DPreviewProps) {
           ))}
         </div>
 
-        {/* Light intensity */}
-        <div className="flex items-center gap-2 border-r border-outline-variant pr-2 min-w-[120px]">
-          <span className="text-xs text-on-surface-variant">Light</span>
-          <input
-            type="range"
-            min={0}
-            max={3}
-            step={0.1}
-            value={lightIntensity}
-            onChange={(e) => setLightIntensity(Number.parseFloat(e.target.value))}
-            className="w-16 h-1 accent-primary"
-          />
-        </div>
+        {/* Light controls - only for lit/textured modes */}
+        {showLightControls && (
+          <div className="flex items-center gap-2 border-r border-outline-variant pr-2">
+            <span className="text-xs text-on-surface-variant">Light</span>
+            <input
+              type="range"
+              min={0}
+              max={3}
+              step={0.1}
+              value={lightIntensity}
+              onChange={(e) => setLightIntensity(Number.parseFloat(e.target.value))}
+              className="w-14 h-1 accent-primary"
+              title="Intensity"
+            />
+            <span className="text-xs text-on-surface-variant">Dir</span>
+            <input
+              type="range"
+              min={0}
+              max={360}
+              step={5}
+              value={lightAzimuth}
+              onChange={(e) => setLightAzimuth(Number.parseInt(e.target.value))}
+              className="w-14 h-1 accent-primary"
+              title="Azimuth"
+            />
+            <input
+              type="range"
+              min={-10}
+              max={90}
+              step={5}
+              value={lightElevation}
+              onChange={(e) => setLightElevation(Number.parseInt(e.target.value))}
+              className="w-14 h-1 accent-primary"
+              title="Elevation"
+            />
+          </div>
+        )}
 
         {/* Actions */}
         <Button size="sm" variant="text" className="text-xs px-2 min-w-0 h-7" onPress={() => setAutoRotate(!autoRotate)}>
