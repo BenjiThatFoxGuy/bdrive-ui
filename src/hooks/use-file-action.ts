@@ -564,7 +564,7 @@ export const useShareFileAction = (params: ShareListParams) => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ fileId: file.id }),
               });
-              if (!res.ok) break;
+              if (!res.ok) return;
               const { token } = await res.json();
               window.location.href = `/resolve/${token}`;
             } catch {
