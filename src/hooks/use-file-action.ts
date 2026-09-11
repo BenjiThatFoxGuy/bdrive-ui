@@ -180,16 +180,18 @@ export const useFileAction = (
 
           const fileToOpen = targetFile ?? files[0];
 
-          if (fileToOpen && FileHelper.isDirectory(fileToOpen)) {
+          // Zip virtual folder: double-click navigates into contents.
+          // Zip stays a file (downloadable), but opens like a folder.
+          if (fileToOpen && (fileToOpen as any).isZip) {
+            const qparams: FileListParams = {
+              view: "browse",
+              params: { zipId: fileToOpen.id, zipPath: "/" },
+            };
+            setSearchParams(qparams.params);
+          } else if (fileToOpen && FileHelper.isDirectory(fileToOpen)) {
             let qparams: FileListParams;
 
-            // Zip virtual folder: navigate into the zip's contents.
-            if (fileToOpen.isZip) {
-              qparams = {
-                view: "browse",
-                params: { zipId: fileToOpen.id, zipPath: "/" },
-              };
-            } else if (view === "my-drive") {
+            if (view === "my-drive") {
               const basePath = search?.path ?? "/";
               qparams = {
                 view,
@@ -463,7 +465,14 @@ export const useShareFileAction = (params: ShareListParams) => {
 
           const fileToOpen = targetFile ?? files[0];
 
-          if (fileToOpen && FileHelper.isDirectory(fileToOpen)) {
+          // Zip virtual folder in share view
+          if (fileToOpen && (fileToOpen as any).isZip) {
+            navigate({
+              to: "/share/$id",
+              params: { id: params.id },
+              search: { zipId: fileToOpen.id, zipPath: "/" },
+            });
+          } else if (fileToOpen && FileHelper.isDirectory(fileToOpen)) {
             const basePath = params?.path ?? "/";
             navigate({
               to: "/share/$id",
