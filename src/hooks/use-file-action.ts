@@ -184,11 +184,11 @@ export const useFileAction = (
           // Archive stays a file (downloadable), but opens like a folder.
           if (fileToOpen && (fileToOpen as any).isZip) {
             const ext = fileToOpen.name?.split(".").pop()?.toLowerCase() ?? "zip";
-            const qparams: FileListParams = {
-              view: "browse",
-              params: { zipId: fileToOpen.id, zipPath: "/", archiveType: ext } as any,
-            };
-            setSearchParams(qparams.params);
+            navigate({
+              to: "/$view",
+              params: { view: "browse" },
+              search: { zipId: fileToOpen.id, zipPath: "/", archiveType: ext } as any,
+            });
           } else if (fileToOpen && FileHelper.isDirectory(fileToOpen)) {
             let qparams: FileListParams;
 
