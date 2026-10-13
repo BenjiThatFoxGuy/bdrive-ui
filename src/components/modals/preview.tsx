@@ -40,6 +40,8 @@ const PsdPreview = lazy(() => import("@/components/previews/psd/psd-preview"));
 
 const Model3DPreview = lazy(() => import("@/components/previews/model3d/model3d-preview"));
 
+const CbzPreview = lazy(() => import("@/components/previews/cbz/cbz-preview"));
+
 const findNext = (files: FileData[], fileId: string, previewType: string) => {
   let index = -1;
   let firstPreviewIndex = -1;
@@ -259,6 +261,13 @@ export default memo(function PreviewModal({
           return (
             <Suspense fallback={<Loader />}>
               <Model3DPreview assetUrl={assetUrl} name={name} />
+            </Suspense>
+          );
+
+        case preview.cbz:
+          return (
+            <Suspense fallback={<Loader />}>
+              <CbzPreview fileId={id} sessionHash={session?.hash ?? ""} />
             </Suspense>
           );
 

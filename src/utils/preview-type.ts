@@ -14,6 +14,7 @@ export const preview = {
   psd: "psd",
   model3d: "model3d",
   zip: "zip",
+  cbz: "cbz",
 };
 
 export const extensions = {
@@ -87,6 +88,7 @@ export const extensions = {
   psd: preview.psd,
 
   zip: preview.zip,
+  cbz: preview.cbz,
   "7z": preview.zip,
   rar: preview.zip,
   tar: preview.zip,
