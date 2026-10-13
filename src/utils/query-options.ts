@@ -183,7 +183,7 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
     // Zip files are browsable as virtual folders on double-click,
     // but remain regular files for downloads, sharing, etc.
     const ext = getExtension(item.name);
-    const browsableArchiveExts = ["zip", "cbz", "unitypackage"];
+    const browsableArchiveExts = ["zip", "unitypackage"];
     const isZipLike = browsableArchiveExts.includes(ext) && item.mimeType !== "drive/folder";
     if (item.mimeType === "drive/folder") {
       return {
