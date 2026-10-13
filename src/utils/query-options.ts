@@ -132,7 +132,8 @@ const fetchFiles =
       if (params?.zipId) {
         const zipPath = params?.zipPath ?? "/";
         const archiveType = (params as any)?.archiveType ?? "zip";
-        const endpoint = archiveType === "unitypackage" ? "unitypkg" : "zip";
+        const endpointMap: Record<string, string> = { unitypackage: "unitypkg", cbz: "cbz" };
+        const endpoint = endpointMap[archiveType] ?? "zip";
         const res = await fetch(`/api/files/${endpoint}/${params.zipId}/list?path=${encodeURIComponent(zipPath)}`, { signal });
         if (!res.ok) throw new Error("Failed to browse archive");
         const data = await res.json();
@@ -182,7 +183,7 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
     // Zip files are browsable as virtual folders on double-click,
     // but remain regular files for downloads, sharing, etc.
     const ext = getExtension(item.name);
-    const browsableArchiveExts = ["zip", "unitypackage"];
+    const browsableArchiveExts = ["zip", "cbz", "unitypackage"];
     const isZipLike = browsableArchiveExts.includes(ext) && item.mimeType !== "drive/folder";
     if (item.mimeType === "drive/folder") {
       return {

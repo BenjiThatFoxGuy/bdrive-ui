@@ -13,6 +13,7 @@ import { Route as ShareRouteImport } from "./routes/_share"
 import { Route as AuthedRouteImport } from "./routes/_authed"
 import { Route as AuthRouteImport } from "./routes/_auth"
 import { Route as AuthedIndexRouteImport } from "./routes/_authed/index"
+import { Route as ResolveTokenRouteImport } from "./routes/resolve.$token"
 import { Route as AuthedStorageRouteImport } from "./routes/_authed/storage"
 import { Route as AuthedSettingsRouteImport } from "./routes/_authed/settings"
 import { Route as AuthedViewRouteImport } from "./routes/_authed/$view"
@@ -36,6 +37,11 @@ const AuthedIndexRoute = AuthedIndexRouteImport.update({
   id: "/",
   path: "/",
   getParentRoute: () => AuthedRoute,
+} as any)
+const ResolveTokenRoute = ResolveTokenRouteImport.update({
+  id: "/resolve/$token",
+  path: "/resolve/$token",
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedStorageRoute = AuthedStorageRouteImport.update({
   id: "/storage",
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   "/$view": typeof AuthedViewRoute
   "/settings": typeof AuthedSettingsRouteWithChildren
   "/storage": typeof AuthedStorageRoute
+  "/resolve/$token": typeof ResolveTokenRoute
   "/": typeof AuthedIndexRoute
   "/settings/$tabId": typeof AuthedSettingsTabIdRoute
   "/share/$id": typeof ShareShareIdRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   "/$view": typeof AuthedViewRoute
   "/settings": typeof AuthedSettingsRouteWithChildren
   "/storage": typeof AuthedStorageRoute
+  "/resolve/$token": typeof ResolveTokenRoute
   "/": typeof AuthedIndexRoute
   "/settings/$tabId": typeof AuthedSettingsTabIdRoute
   "/share/$id": typeof ShareShareIdRoute
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   "/_authed/$view": typeof AuthedViewRoute
   "/_authed/settings": typeof AuthedSettingsRouteWithChildren
   "/_authed/storage": typeof AuthedStorageRoute
+  "/resolve/$token": typeof ResolveTokenRoute
   "/_authed/": typeof AuthedIndexRoute
   "/_authed/settings/$tabId": typeof AuthedSettingsTabIdRoute
   "/_share/share/$id": typeof ShareShareIdRoute
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | "/$view"
     | "/settings"
     | "/storage"
+    | "/resolve/$token"
     | "/"
     | "/settings/$tabId"
     | "/share/$id"
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | "/$view"
     | "/settings"
     | "/storage"
+    | "/resolve/$token"
     | "/"
     | "/settings/$tabId"
     | "/share/$id"
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | "/_authed/$view"
     | "/_authed/settings"
     | "/_authed/storage"
+    | "/resolve/$token"
     | "/_authed/"
     | "/_authed/settings/$tabId"
     | "/_share/share/$id"
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   AuthedRoute: typeof AuthedRouteWithChildren
   ShareRoute: typeof ShareRouteWithChildren
+  ResolveTokenRoute: typeof ResolveTokenRoute
 }
 
 declare module "@tanstack/react-router" {
@@ -171,6 +184,13 @@ declare module "@tanstack/react-router" {
       fullPath: "/"
       preLoaderRoute: typeof AuthedIndexRouteImport
       parentRoute: typeof AuthedRoute
+    }
+    "/resolve/$token": {
+      id: "/resolve/$token"
+      path: "/resolve/$token"
+      fullPath: "/resolve/$token"
+      preLoaderRoute: typeof ResolveTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     "/_authed/storage": {
       id: "/_authed/storage"
@@ -270,6 +290,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   AuthedRoute: AuthedRouteWithChildren,
   ShareRoute: ShareRouteWithChildren,
+  ResolveTokenRoute: ResolveTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
