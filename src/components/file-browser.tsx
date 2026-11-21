@@ -152,7 +152,7 @@ export const DriveFileBrowser = memo(() => {
     return [];
   }, [search?.path, search?.selectId, search?.parentId, view, files]);
 
-  const { zipDownloadEnabled } = useServerConfig();
+  const { zipDownloadEnabled, encryptionEnabled } = useServerConfig();
 
   const scopedFileActions = useMemo(() => {
     let actions = fileActions;
@@ -163,8 +163,11 @@ export const DriveFileBrowser = memo(() => {
     if (!zipDownloadEnabled) {
       actions = actions.filter((action) => action.id !== CustomActions.DownloadAsZip.id);
     }
+    if (!encryptionEnabled) {
+      actions = actions.filter((action) => action.id !== CustomActions.TransformFile.id);
+    }
     return actions;
-  }, [view, zipDownloadEnabled]);
+  }, [view, zipDownloadEnabled, encryptionEnabled]);
 
   useEffect(() => {
     const selectId = search?.selectId;

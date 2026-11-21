@@ -379,6 +379,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/files/{id}/transform": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Encrypt or decrypt a file
+         * @description Streams the plaintext, optionally re-encrypts, and re-uploads every part. Old parts are marked for deferred cleanup. Transformation breaks any dedup reference.
+         */
+        post: operations["Files_transform"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/files/{id}/{name}": {
         parameters: {
             query?: never;
@@ -1123,7 +1143,7 @@ export interface components {
              */
             expiresAt?: string;
             /**
-             * @description Shortlink code to set. On create, omit for no shortlink, pass an empty string to auto-generate one, or pass a custom slug (4-32 chars: letters, numbers, dots, dashes and underscores, must start and end with a letter or number). On edit, omit to leave the existing shortlink state untouched; use clearShortCode to remove it instead of passing an empty string here.
+             * @description Shortlink code to set. On create, omit for no shortlink, pass an empty string to auto-generate one, or pass a custom slug (4-255 chars: letters, numbers, dots, dashes and underscores, must start and end with a letter or number, and can't be a uuid). On edit, omit to leave the existing shortlink state untouched; use clearShortCode to remove it instead of passing an empty string here.
              * @example a1b2c3d
              */
             shortCode?: string;
@@ -1269,6 +1289,16 @@ export interface components {
              * @example https://go.example.com
              */
             shortlinkDomain?: string;
+            /**
+             * @description Base URL of the imgproxy/image resizer instance for thumbnails (e.g. https://imgproxy.example.com). Configured server-side so all clients use the same resizer.
+             * @example https://imgproxy.example.com
+             */
+            resizerHost?: string;
+            /**
+             * @description Whether the server has an encryption key configured. Clients hide encrypt/decrypt actions when false.
+             * @example true
+             */
+            encryptionEnabled: boolean;
         };
         /** @description User session information containing authentication and profile details */
         Session: {
@@ -2410,6 +2440,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ShortCodeSuggestion"];
                 };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    Files_transform: {
+        parameters: {
+            query: {
+                mode: "encrypt" | "decrypt";
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description An unexpected error response. */
             default: {
