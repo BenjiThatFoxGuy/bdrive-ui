@@ -1,0 +1,30 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 8cf98bbe1b473945a98c135633093d23b6803593..a432c41123fa51f3eebf3319afe54564d4695201 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -3264,7 +3264,24 @@ var useFileClickHandlers = (file, displayIndex) => {
+ var FileEntryName = React101__default.memo(
+   ({ file, className }) => {
+     const modifierIconComponents = useModifierIconComponents(file);
+-    return /* @__PURE__ */ React101__default.createElement("div", { className: "flex items-center gap-1 truncate", title: file == null ? void 0 : file.name }, modifierIconComponents.length > 0 && /* @__PURE__ */ React101__default.createElement("span", { className: "text-inherit relative text-sm pr-1" }, modifierIconComponents), /* @__PURE__ */ React101__default.createElement("span", { className }, file == null ? void 0 : file.name));
++    const viewConfig = useSelector(selectFileViewConfig);
++    const showTypeBadge = viewConfig && viewConfig.mode === "grid" && file && file.thumbnailUrl;
++    const iconData = useIconData(file);
++    const typeColor = ColorsLight[iconData.colorCode];
++    const typeBadge = showTypeBadge && /* @__PURE__ */ React101__default.createElement(
++      "span",
++      {
++        className: "inline-flex size-5 shrink-0 items-center justify-center rounded",
++        style: { backgroundColor: `${typeColor}1F`, color: typeColor },
++        title: "file type",
++      },
++      /* @__PURE__ */ React101__default.createElement(FbIcon, {
++        icon: iconData.icon,
++        fixedWidth: true,
++        className: "size-4",
++      })
++    );
++    return /* @__PURE__ */ React101__default.createElement("div", { className: "flex items-center gap-1 truncate", title: file == null ? void 0 : file.name }, typeBadge, modifierIconComponents.length > 0 && /* @__PURE__ */ React101__default.createElement("span", { className: "text-inherit relative text-sm pr-1" }, modifierIconComponents), /* @__PURE__ */ React101__default.createElement("span", { className }, file == null ? void 0 : file.name));
+   }
+ );
+ FileEntryName.displayName = "FileEntryName";
