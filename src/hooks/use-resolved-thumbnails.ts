@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { FileData } from "@tw-material/file-browser";
+import toast from "react-hot-toast";
 
 const MAX_RETRIES = 5;
 const BASE_DELAY_MS = 2_000;
@@ -15,6 +16,23 @@ const BASE_DELAY_MS = 2_000;
 // Session-wide caches shared across every file browser instance.
 const resolved = new Map<string, string>();
 const inflight = new Map<string, Promise<string>>();
+
+// Shared non-dismissible toast for thumbnail loading.
+const TOAST_ID = "thumbnail-loading";
+let pendingCount = 0;
+
+function updateLoadingToast() {
+  if (pendingCount > 0) {
+    toast.loading(
+      pendingCount === 1
+        ? "Generating 1 thumbnail..."
+        : `Generating ${pendingCount} thumbnails...`,
+      { id: TOAST_ID, duration: Infinity },
+    );
+  } else {
+    toast.dismiss(TOAST_ID);
+  }
+}
 
 function probeImage(url: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -46,9 +64,13 @@ function resolveThumb(url: string): Promise<string> {
 
   let pending = inflight.get(url);
   if (!pending) {
+    pendingCount++;
+    updateLoadingToast();
     pending = fetchWithRetry(url).then((result) => {
       resolved.set(url, result);
       inflight.delete(url);
+      pendingCount = Math.max(0, pendingCount - 1);
+      updateLoadingToast();
       return result;
     });
     inflight.set(url, pending);
