@@ -18,6 +18,7 @@ import { BREAKPOINTS, defaultViewId } from "@/utils/defaults";
 import { shareQueries } from "@/utils/query-options";
 import { sharefileActions, useShareFileAction } from "@/hooks/use-file-action";
 import { CustomActions } from "@/hooks/use-file-action";
+import { useResolvedThumbnails } from "@/hooks/use-resolved-thumbnails";
 import { useModalStore } from "@/utils/stores";
 import PreviewModal from "./modals/preview";
 import { $api } from "@/utils/api";
@@ -72,11 +73,13 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   });
 
   const {
-    data: files,
+    data: rawFiles,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
   } = useSuspenseInfiniteQuery(shareQueries.list(params));
+
+  const files = useResolvedThumbnails(rawFiles);
 
   const actionHandler = useShareFileAction(params);
 
