@@ -14,6 +14,7 @@ import IconFlatColorIconsVlc from "~icons/flat-color-icons/vlc";
 import IconPotPlayerIcon from "~icons/material-symbols/play-circle-rounded";
 import IconMaterialSymbolsStar from "~icons/material-symbols/star-rounded";
 import IconMaterialSymbolsInfo from "~icons/material-symbols/info-outline-rounded";
+import IconMaterialSymbolsLock from "~icons/material-symbols/lock";
 import toast from "react-hot-toast";
 
 import {
@@ -128,6 +129,19 @@ export const CustomActions = {
     },
   } as const),
 
+  TransformFile: defineFileAction({
+    id: "transform_file",
+    requiresSelection: true,
+    fileFilter: (file) => !(file && "isDir" in file),
+    button: {
+      name: "Encrypt / Decrypt",
+      contextMenu: true,
+      toolbar: false,
+      group: "More",
+      icon: IconMaterialSymbolsLock,
+    },
+  } as const),
+
   ShowFileInfo: defineFileAction({
     id: "show_file_info",
     requiresSelection: true,
@@ -171,6 +185,8 @@ export const useFileAction = (
   const moveFiles = $api.useMutation("post", "/files/move");
 
   const toggleStar = $api.useMutation("patch", "/files/{id}");
+
+  const transformFile = $api.useMutation("post", "/files/{id}/transform");
 
   return useCallback(() => {
     return async (data: MapFileActionsToData<FbActionFullUnion>) => {
@@ -266,6 +282,45 @@ export const useFileAction = (
             .catch(() => {
               toast.error("Failed to update starred files");
             });
+          break;
+        }
+        case CustomActions.TransformFile.id: {
+          const { selectedFilesForAction } = data.state;
+          const files = selectedFilesForAction.map((f) => ({
+            id: f.id,
+            name: f.name,
+            encrypted: (f as any).encrypted ?? false,
+          }));
+          const encrypt = files.length === 1 && !files[0]!.encrypted;
+          const mode = encrypt ? "encrypt" : "decrypt";
+          const toastId = "transform-files";
+          let done = 0;
+          toast.loading(
+            `${encrypt ? "Encrypting" : "Decrypting"} ${files.length} file${files.length > 1 ? "s" : ""}... (0/${files.length})`,
+            { id: toastId, duration: Infinity },
+          );
+          const results = await Promise.allSettled(
+            files.map(async (f) => {
+              await transformFile.mutateAsync({
+                params: {
+                  path: { id: f.id },
+                  query: { mode: mode as "encrypt" | "decrypt" },
+                },
+              });
+              done++;
+              toast.loading(
+                `${encrypt ? "Encrypting" : "Decrypting"} ${files.length} file${files.length > 1 ? "s" : ""}... (${done}/${files.length})`,
+                { id: toastId, duration: Infinity },
+              );
+            }),
+          );
+          const failed = results.filter((r) => r.status === "rejected").length;
+          queryClient.invalidateQueries({ queryKey: ["Files_list"] });
+          if (failed) {
+            toast.error(`${failed} file${failed > 1 ? "s" : ""} failed`, { id: toastId });
+          } else {
+            toast.success(`Done: ${files.length} file${files.length > 1 ? "s" : ""}`, { id: toastId });
+          }
           break;
         }
         case CustomActions.OpenInVLCPlayer.id: {

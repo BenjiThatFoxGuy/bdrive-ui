@@ -49,6 +49,7 @@ export const useServerConfig = () => {
     zipDownloadEnabled: data?.zipDownloadEnabled ?? true,
     shortlinksEnabled: data?.shortlinksEnabled ?? false,
     shortlinkDomain: data?.shortlinkDomain,
+    encryptionEnabled: data?.encryptionEnabled ?? false,
   };
 };
 
