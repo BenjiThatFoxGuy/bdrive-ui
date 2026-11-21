@@ -41,6 +41,19 @@ const validateBots = (value?: string) => {
   return false;
 };
 
+type BotCleanupEntry = {
+  bot_id: number;
+  user_name?: string;
+  error?: string;
+};
+
+type BotCleanupResult = {
+  total_scanned: number;
+  valid: BotCleanupEntry[];
+  invalid: BotCleanupEntry[];
+  kept: BotCleanupEntry[];
+};
+
 const formatDate = (date: string) => {
   const d = new Date(date);
   return d.toLocaleDateString(undefined, {
@@ -297,6 +310,97 @@ const BotOperationModal = memo(
   },
 );
 
+interface BotCleanupProps {
+  open: boolean;
+  handleClose: () => void;
+  result: BotCleanupResult | null;
+}
+
+const BotCleanupEntryList = ({
+  title,
+  items,
+  empty,
+}: {
+  title: string;
+  items: BotCleanupEntry[];
+  empty: string;
+}) => (
+  <div className="flex flex-col gap-2">
+    <p className="text-sm font-medium text-on-surface-variant">{title}</p>
+    {items.length === 0 ? (
+      <p className="text-sm text-on-surface-variant">{empty}</p>
+    ) : (
+      <ul className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+        {items.map((item) => (
+          <li
+            key={item.bot_id}
+            className="rounded-xl bg-surface-container-high px-3 py-2 flex flex-col gap-0.5"
+          >
+            <span className="text-sm font-medium">
+              {item.user_name ? `@${item.user_name}` : "unknown username"}
+            </span>
+            <span className="text-xs text-on-surface-variant">
+              bot id {item.bot_id}
+            </span>
+            {item.error && (
+              <span className="text-xs text-error break-words">{item.error}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+);
+
+const BotCleanupModal = memo(
+  ({ open, handleClose, result }: BotCleanupProps) => {
+    return (
+      <Modal
+        isOpen={open}
+        size="md"
+        classNames={{
+          wrapper: "overflow-hidden",
+          base: "bg-surface w-full shadow-none",
+        }}
+        placement="center"
+        onClose={handleClose}
+        hideCloseButton
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            Bot Token Cleanup
+          </ModalHeader>
+          <ModalBody className="flex flex-col gap-4">
+            <p className="text-sm text-on-surface-variant">
+              Scanned {result?.total_scanned ?? 0} bots.
+            </p>
+            <BotCleanupEntryList
+              title="Valid"
+              items={result?.valid ?? []}
+              empty="No valid bots."
+            />
+            <BotCleanupEntryList
+              title="Removed (invalid)"
+              items={result?.invalid ?? []}
+              empty="Nothing was removed."
+            />
+            <BotCleanupEntryList
+              title="Kept (rate limited or unreachable)"
+              items={result?.kept ?? []}
+              empty="Nothing was kept back."
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button className="font-normal" variant="text" onPress={handleClose}>
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    );
+  },
+);
+
 const ChannelOperationModal = memo(
   ({ open, handleClose, operation, channelId }: ChannelOperationProps) => {
     const renderOperation = () => {
@@ -380,6 +484,29 @@ export const AccountTab = memo(() => {
   });
 
   const queryClient = useQueryClient();
+
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<BotCleanupResult | null>(
+    null,
+  );
+  const [cleanupPending, setCleanupPending] = useState(false);
+
+  const runBotCleanup = useCallback(async () => {
+    setCleanupPending(true);
+    try {
+      const res = await fetch("/api/bots/cleanup", { method: "POST" });
+      if (!res.ok) throw new Error(res.statusText);
+      const data = (await res.json()) as BotCleanupResult;
+      setCleanupResult(data);
+      setCleanupOpen(true);
+      queryClient.invalidateQueries({ queryKey: ["get", "/users/config"] });
+      toast.success("Bot token cleanup finished");
+    } catch {
+      toast.error("Bot token cleanup failed");
+    } finally {
+      setCleanupPending(false);
+    }
+  }, [queryClient]);
 
   const copyTokens = useCallback(() => {
     if (userConfig && userConfig.bots.length > 0) {
@@ -520,10 +647,24 @@ export const AccountTab = memo(() => {
                   {userConfig?.bots.length || 0}
                 </p>
               </div>
+              <Button
+                startContent={<SyncIcon className="size-4" />}
+                variant="bordered"
+                className="text-sm mt-2"
+                isLoading={cleanupPending}
+                onPress={runBotCleanup}
+              >
+                Cleanup Bot Tokens
+              </Button>
               <BotOperationModal
                 open={botOpen}
                 handleClose={() => setBotOpen(false)}
                 onRemove={handleRemoveBots}
+              />
+              <BotCleanupModal
+                open={cleanupOpen}
+                handleClose={() => setCleanupOpen(false)}
+                result={cleanupResult}
               />
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
