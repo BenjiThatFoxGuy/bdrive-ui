@@ -649,7 +649,7 @@ export const AccountTab = memo(() => {
               </div>
               <Button
                 startContent={<SyncIcon className="size-4" />}
-                variant="bordered"
+                variant="outlined"
                 className="text-sm mt-2"
                 isLoading={cleanupPending}
                 onPress={runBotCleanup}
