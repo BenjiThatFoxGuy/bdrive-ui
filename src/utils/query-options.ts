@@ -208,8 +208,8 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
     const { settings } = useSettingsStore.getState();
 
     let thumbnailUrl = "";
-    if (previewType === "video" && settings.resizerHost) {
-      // Video thumbnails use a dedicated backend endpoint.
+    if ((previewType === "video" || previewType === "psd") && settings.resizerHost) {
+      // Video and PSD thumbnails use the same dedicated backend endpoint.
       const thumbUrl = new URL(window.location.origin);
       if (shareId) {
         thumbUrl.pathname = `/api/shares/${shareId}/files/${item.id!}/thumb`;
