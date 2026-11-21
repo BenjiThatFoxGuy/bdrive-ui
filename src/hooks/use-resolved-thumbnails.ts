@@ -62,6 +62,12 @@ function resolveThumb(url: string): Promise<string> {
  * instead of a broken image), then swapped in once the backend serves them.
  */
 export function useResolvedThumbnails<T extends (FileData | null)[]>(
+  files: T,
+): T;
+export function useResolvedThumbnails<T extends (FileData | null)[]>(
+  files: T | undefined,
+): T | undefined;
+export function useResolvedThumbnails<T extends (FileData | null)[]>(
   files: T | undefined,
 ): T | undefined {
   // Track which thumbnail URLs have been confirmed ready.
