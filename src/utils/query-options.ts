@@ -207,6 +207,17 @@ const mapFilesToFb = (files: components["schemas"]["FileList"]["items"], session
     const { settings } = useSettingsStore.getState();
 
     let thumbnailUrl = "";
+    if (previewType === "video" && settings.resizerHost) {
+      // Video thumbnails use a dedicated backend endpoint.
+      const thumbUrl = new URL(window.location.origin);
+      if (shareId) {
+        thumbUrl.pathname = `/api/shares/${shareId}/files/${item.id!}/thumb`;
+      } else {
+        thumbUrl.pathname = `/api/files/thumb/${item.id!}`;
+        thumbUrl.searchParams.set('hash', sessionHash);
+      }
+      thumbnailUrl = `${settings.resizerHost}/insecure/w:360/plain/${encodeURIComponent(thumbUrl.toString())}`;
+    }
     if (previewType === "image") {
       if (settings.resizerHost) {
         let url: string;
