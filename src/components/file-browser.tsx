@@ -23,6 +23,7 @@ import {
   fileActions,
   useFileAction,
 } from "@/hooks/use-file-action";
+import { useResolvedThumbnails } from "@/hooks/use-resolved-thumbnails";
 import { chainLinks } from "@/utils/common";
 import {
   BREAKPOINTS,
@@ -84,11 +85,13 @@ export const DriveFileBrowser = memo(() => {
   const { breakpoint } = useBreakpoint(BREAKPOINTS);
 
   const {
-    data: files,
+    data: rawFiles,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
   } = useSuspenseInfiniteQuery(queryOptions);
+
+  const files = useResolvedThumbnails(rawFiles);
 
   const actionHandler = useFileAction(queryParams, session!);
 
