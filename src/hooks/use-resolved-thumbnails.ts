@@ -61,9 +61,9 @@ function resolveThumb(url: string): Promise<string> {
  * that haven't loaded yet are blanked out (so the file browser shows the icon
  * instead of a broken image), then swapped in once the backend serves them.
  */
-export function useResolvedThumbnails(
-  files: (FileData | null)[] | undefined,
-): (FileData | null)[] | undefined {
+export function useResolvedThumbnails<T extends (FileData | null)[]>(
+  files: T | undefined,
+): T | undefined {
   // Track which thumbnail URLs have been confirmed ready.
   const [readyUrls, setReadyUrls] = useState<ReadonlySet<string>>(
     () => new Set(resolved.keys()),
@@ -114,5 +114,5 @@ export function useResolvedThumbnails(
     if (readyUrls.has(file.thumbnailUrl)) return file;
     // Not ready yet: show the file icon instead of a broken <img>.
     return { ...file, thumbnailUrl: "" };
-  });
+  }) as T;
 }
