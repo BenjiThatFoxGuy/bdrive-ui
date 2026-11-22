@@ -155,6 +155,53 @@ function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
   const [rendered, setRendered] = useState<HTMLImageElement>();
   const [serverRenderError, setServerRenderError] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
+
+  // Pre-render cache: keyed by JSON-serialised single-layer overrides.
+  // Populated in the background so the first toggle of a leaf layer is instant.
+  const prerenderCache = useRef(new Map<string, HTMLImageElement>());
+  const prerenderAbort = useRef<AbortController>();
+
+  useEffect(() => {
+    if (!fileId || !useServer || !serverMeta || !panelOpen) return;
+    prerenderAbort.current?.abort();
+    const controller = new AbortController();
+    prerenderAbort.current = controller;
+    const { signal } = controller;
+
+    const leaves: { id: number; visible: boolean }[] = [];
+    const walk = (layers: typeof serverMeta.layers) => {
+      for (const l of layers) {
+        if (l.children?.length) { walk(l.children); continue; }
+        leaves.push({ id: l.id, visible: l.visible });
+      }
+    };
+    walk(serverMeta.layers);
+    // Cap at 24 to avoid hammering the server on huge files.
+    const batch = leaves.slice(0, 24);
+
+    (async () => {
+      for (const layer of batch) {
+        if (signal.aborted) break;
+        const key = JSON.stringify({ [String(layer.id)]: !layer.visible });
+        if (prerenderCache.current.has(key)) continue;
+        try {
+          const { data, response } = await fetchClient.POST("/files/{id}/psd-preview", {
+            params: { path: { id: fileId } },
+            body: { visibility: [{ id: layer.id, visible: !layer.visible }] },
+            parseAs: "blob", signal,
+          });
+          if (!data || !response.ok || signal.aborted) continue;
+          const img = new Image();
+          const url = URL.createObjectURL(data);
+          try { img.src = url; await img.decode(); if (!signal.aborted) prerenderCache.current.set(key, img); }
+          finally { URL.revokeObjectURL(url); }
+        } catch { /* network/cancel, skip */ }
+      }
+    })();
+
+    return () => controller.abort();
+  }, [fileId, useServer, serverMeta, panelOpen]);
+
   useEffect(() => {
     if (!fileId || !useServer || !serverMeta || !Object.keys(serverOverrides).length) {
       setRendered(undefined);
@@ -162,6 +209,17 @@ function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
       setServerRenderError(false);
       return;
     }
+    // Check pre-render cache for instant hit
+    const cacheKey = JSON.stringify(serverOverrides);
+    const cached = prerenderCache.current.get(cacheKey);
+    if (cached) {
+      setRendered(cached);
+      setIsRendering(false);
+      setServerRenderError(false);
+      return;
+    }
+    // Cancel pre-renders so the interactive request gets the slot
+    prerenderAbort.current?.abort();
     const controller = new AbortController();
     const signal = controller.signal;
     setIsRendering(true);
