@@ -179,9 +179,9 @@ function flatten(
   rows: LayerRowData[] = [],
 ) {
   // Photoshop lists the top-most layer first, the reverse of the file order the
-  // renderer walks.
-  for (let i = nodes.length - 1; i >= 0; i--) {
-    const node = nodes[i];
+  // renderer walks. Server-sourced trees are already in display order (top-first),
+  // so only browser-parsed trees (which follow file order) need reversal.
+  for (const node of nodes) {
     const isVisible = visible[node.id] !== false;
     rows.push({ node, depth, isVisible, effectiveHidden: ancestorHidden || !isVisible });
 
