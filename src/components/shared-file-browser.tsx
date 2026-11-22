@@ -18,6 +18,7 @@ import { BREAKPOINTS, defaultViewId } from "@/utils/defaults";
 import { shareQueries } from "@/utils/query-options";
 import { sharefileActions, useShareFileAction } from "@/hooks/use-file-action";
 import { CustomActions } from "@/hooks/use-file-action";
+import { useMiddleClickFile, useOpenFileTabs, usePreviewFromUrl } from "@/hooks/use-file-tabs";
 import { useResolvedThumbnails } from "@/hooks/use-resolved-thumbnails";
 import { useModalStore } from "@/utils/stores";
 import PreviewModal from "./modals/preview";
@@ -46,7 +47,7 @@ const disabledActions = [
 export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   const { id } = route.useParams();
 
-  const { path } = route.useSearch();
+  const { path, previewId } = route.useSearch();
 
   const listRef = useRef<VirtuosoHandle | VirtuosoGridHandle>(null);
 
@@ -77,9 +78,15 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
   } = useSuspenseInfiniteQuery(shareQueries.list(params));
 
   const files = useResolvedThumbnails(rawFiles);
+  const middleClick = useMiddleClickFile(files, useOpenFileTabs(params));
+  usePreviewFromUrl({
+    previewId: previewId, files, hasNextPage, isFetchingNextPage,
+    isFetchNextPageError, fetchNextPage,
+  });
 
   const actionHandler = useShareFileAction(params);
 
@@ -135,7 +142,7 @@ export const SharedFileBrowser = memo(({ password }: { password: string }) => {
   }, [id, path]);
 
   return (
-    <div className="size-full m-auto">
+    <div className="size-full m-auto" {...middleClick}>
       <FileBrowser
         files={files}
         folderChain={folderChain}

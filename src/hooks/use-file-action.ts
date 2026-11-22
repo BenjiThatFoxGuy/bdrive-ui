@@ -33,8 +33,22 @@ import MaterialSymbolsFolderOpen from "~icons/material-symbols/folder-open-outli
 import MaterialSymbolsFolderZip from "~icons/material-symbols/folder-zip-outline-rounded";
 import { useNavigate } from "@tanstack/react-router";
 import { $api } from "@/utils/api";
+import { canOpenInNewTab } from "@/utils/file-tab-destination";
+import { useOpenFileTabs } from "./use-file-tabs";
 
 export const CustomActions = {
+  OpenInNewTab: defineFileAction({
+    id: "open_in_new_tab",
+    requiresSelection: true,
+    fileFilter: canOpenInNewTab,
+    button: {
+      name: "Open in new tab",
+      contextMenu: true,
+      toolbar: true,
+      group: "More",
+      icon: FbIconName.newTab,
+    },
+  } as const),
   OpenInVLCPlayer: defineFileAction({
     id: "open_vlc_player",
     requiresSelection: true,
@@ -165,6 +179,7 @@ export const useFileAction = (
   session: Session,
 ) => {
   const queryClient = useQueryClient();
+  const openTabs = useOpenFileTabs({ view, params: search });
 
   const actions = useModalStore((state) => state.actions);
 
@@ -191,6 +206,9 @@ export const useFileAction = (
   return useCallback(() => {
     return async (data: MapFileActionsToData<FbActionFullUnion>) => {
       switch (data.id) {
+        case CustomActions.OpenInNewTab.id:
+          openTabs(data.state.selectedFilesForAction);
+          break;
         case FbActions.OpenFiles.id: {
           const { targetFile, files } = data.payload;
 
@@ -505,10 +523,11 @@ export const useFileAction = (
           break;
       }
     };
-  }, [view, search?.path, usePathNav]);
+  }, [view, search?.path, usePathNav, openTabs]);
 };
 
 export const useShareFileAction = (params: ShareListParams) => {
+  const openTabs = useOpenFileTabs(params);
   const actions = useModalStore((state) => state.actions);
   const navigate = useNavigate();
   const { settings } = useSettingsStore();
@@ -516,6 +535,9 @@ export const useShareFileAction = (params: ShareListParams) => {
   return useCallback(() => {
     return async (data: MapFileActionsToData<FbActionFullUnion>) => {
       switch (data.id) {
+        case CustomActions.OpenInNewTab.id:
+          openTabs(data.state.selectedFilesForAction);
+          break;
         case FbActions.OpenFiles.id: {
           const { targetFile, files } = data.payload;
 
@@ -638,7 +660,7 @@ export const useShareFileAction = (params: ShareListParams) => {
           break;
       }
     };
-  }, [params.path, params.id]);
+  }, [params.path, params.id, openTabs]);
 };
 
 export const fileActions = [

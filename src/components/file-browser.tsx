@@ -23,6 +23,7 @@ import {
   fileActions,
   useFileAction,
 } from "@/hooks/use-file-action";
+import { useMiddleClickFile, useOpenFileTabs, usePreviewFromUrl } from "@/hooks/use-file-tabs";
 import { useResolvedThumbnails } from "@/hooks/use-resolved-thumbnails";
 import { chainLinks } from "@/utils/common";
 import {
@@ -89,9 +90,15 @@ export const DriveFileBrowser = memo(() => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
   } = useSuspenseInfiniteQuery(queryOptions);
 
   const files = useResolvedThumbnails(rawFiles);
+  const middleClick = useMiddleClickFile(files, useOpenFileTabs(queryParams));
+  usePreviewFromUrl({
+    previewId: search.previewId, files, hasNextPage, isFetchingNextPage,
+    isFetchNextPageError, fetchNextPage,
+  });
 
   const actionHandler = useFileAction(queryParams, session!);
 
@@ -208,7 +215,7 @@ export const DriveFileBrowser = memo(() => {
   }, [search?.path, view]);
 
   return (
-    <div className="size-full m-auto relative">
+    <div className="size-full m-auto relative" {...middleClick}>
       <UploadDropzone isDisabled={view !== "my-drive"}>
         <FileBrowser
           ref={fileBrowserRef}
