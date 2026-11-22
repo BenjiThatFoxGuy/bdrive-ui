@@ -20,6 +20,7 @@ import {
   type PsdLayerNode,
 } from "@/utils/psd";
 import { closePsdImages, createPsdSession, type PsdSession } from "@/utils/psd-client";
+import { needsServerBlend } from "@/utils/psd-renderer-routing";
 import PsdCanvas from "./psd-canvas";
 import PsdLayersPanel from "./psd-layers-panel";
 
@@ -128,8 +129,9 @@ function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
   }, [parsed, verdict, loadLayers]);
 
   // A PSD can fit the browser budget but still need the server's blend operators.
+  const needsBlendOffload = useMemo(() => parsed ? needsServerBlend(parsed.tree) : false, [parsed]);
   const preferServer = !!fileId && !!parsed?.layerCount &&
-    (verdict?.available === false || parsed.unsupportedBlends.length > 0);
+    (verdict?.available === false || needsBlendOffload);
   const { data: serverMeta, isFetching: loadingServerMeta, isError: serverMetaError } = useQuery({
     queryKey: ["psd-preview-metadata", fileId, assetUrl],
     enabled: preferServer && panelOpen,
@@ -144,6 +146,7 @@ function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
   });
   const canFallBack = verdict?.available === true;
   const useServer = preferServer && !(serverMetaError && canFallBack);
+  const blendApproximation = panelOpen && !useServer && needsBlendOffload && !parsed?.unsupportedBlends.length;
   useEffect(() => {
     if (panelOpen && serverMetaError && canFallBack) loadLayers();
   }, [panelOpen, serverMetaError, canFallBack, loadLayers]);
@@ -239,9 +242,9 @@ function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
         />
 
         <div className="absolute right-4 bottom-2 z-20 flex flex-col items-end gap-2">
-          {(layersError || serverMetaError || serverRenderError || (!useServer && verdict && !verdict.available)) && (
+          {(layersError || serverMetaError || serverRenderError || (panelOpen && blendApproximation) || (!useServer && verdict && !verdict.available)) && (
             <p className="max-w-xs rounded-medium bg-surface-container px-3 py-1.5 text-right text-body-small text-on-surface-variant shadow-1">
-              {layersError || (serverMetaError ? "The server cannot inspect layers for this file." : serverRenderError ? "The server could not render these layers. The last available preview is still shown." : verdict?.reason)}
+              {layersError || (serverMetaError ? "The server cannot inspect layers for this file." : serverRenderError ? "The server could not render these layers. The last available preview is still shown." : blendApproximation ? "Some blending is approximated in the browser. Toggle layers to see server-rendered output." : verdict?.reason)}
             </p>
           )}
           <Button
