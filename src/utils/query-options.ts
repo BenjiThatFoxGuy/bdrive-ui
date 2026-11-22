@@ -54,10 +54,10 @@ export const useServerConfig = () => {
 };
 
 export const fileQueries = {
-  list: (params: FileListParams, sessionHash?: string) =>
+  list: ({ view, params: { previewId, ...params } }: FileListParams, sessionHash?: string) =>
     infiniteQueryOptions({
-      queryKey: ["Files_list", params.view, params.params],
-      queryFn: fetchFiles(params),
+      queryKey: ["Files_list", view, params],
+      queryFn: fetchFiles({ view, params }),
       initialPageParam: 1,
       getNextPageParam: (lastPage, _) =>
         lastPage?.meta.currentPage! + 1 > lastPage?.meta.totalPages!

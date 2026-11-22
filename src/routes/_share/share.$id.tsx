@@ -9,6 +9,10 @@ export const Route = createFileRoute("/_share/share/$id")({
   validateSearch: (search: Record<string, unknown>) =>
     search as {
       path?: string;
+      previewId?: string;
+      zipId?: string;
+      zipPath?: string;
+      archiveType?: string;
       sort?: string;
       order?: string;
       limit?: number;
