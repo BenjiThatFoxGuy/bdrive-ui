@@ -253,7 +253,7 @@ export default memo(function PreviewModal({
         case preview.psd:
           return (
             <Suspense fallback={<Loader />}>
-              <PsdPreview assetUrl={assetUrl} size={size ?? 0} />
+              <PsdPreview key={assetUrl} assetUrl={assetUrl} size={size ?? 0} fileId={shareId ? undefined : id} />
             </Suspense>
           );
 
@@ -276,7 +276,7 @@ export default memo(function PreviewModal({
       }
     }
     return null;
-  }, [assetUrl, name, previewType]);
+  }, [assetUrl, id, name, previewType, shareId, size]);
 
   return (
     <Modal

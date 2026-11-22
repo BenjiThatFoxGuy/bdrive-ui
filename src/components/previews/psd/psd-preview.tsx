@@ -6,6 +6,8 @@ import IconErrorOutline from "~icons/material-symbols/error-outline";
 import IconLayers from "~icons/material-symbols/layers";
 import IconLayersClear from "~icons/material-symbols/layers-clear";
 
+import { fetchClient } from "@/utils/api";
+import type { components } from "@/lib/api";
 import { center } from "@/utils/classes";
 import fetchThrow from "@/utils/fetch-throw";
 import {
@@ -21,7 +23,7 @@ import { closePsdImages, createPsdSession, type PsdSession } from "@/utils/psd-c
 import PsdCanvas from "./psd-canvas";
 import PsdLayersPanel from "./psd-layers-panel";
 
-function PsdPreview({ assetUrl, size }: PsdPreviewProps) {
+function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
   const budget = useMemo(psdBudget, []);
   const sessionRef = useRef<PsdSession>();
   const [panelOpen, setPanelOpen] = useState(false);
@@ -125,10 +127,66 @@ function PsdPreview({ assetUrl, size }: PsdPreviewProps) {
     if (parsed && !parsed.composite && verdict?.available) loadLayers();
   }, [parsed, verdict, loadLayers]);
 
+  const useServer = !!fileId && !!parsed?.layerCount && verdict?.available === false;
+  const { data: serverMeta, isFetching: loadingServerMeta, isError: serverMetaError } = useQuery({
+    queryKey: ["psd-preview-metadata", assetUrl],
+    enabled: useServer && panelOpen,
+    retry: false,
+    queryFn: async ({ signal }) => {
+      const { data, response } = await fetchClient.GET("/files/{id}/psd-preview", {
+        params: { path: { id: fileId! } }, signal,
+      });
+      if (!data || !response.ok) throw new Error("Layer metadata is unavailable");
+      return data;
+    },
+  });
+  const serverTree = useMemo(() => serverMeta?.layers.map(serverLayer), [serverMeta]);
+  const [serverOverrides, setServerOverrides] = useState<Record<string, boolean>>({});
+  const [rendered, setRendered] = useState<HTMLImageElement>();
+  const [serverRenderError, setServerRenderError] = useState(false);
+  const [isRendering, setIsRendering] = useState(false);
+  useEffect(() => {
+    if (!fileId || !useServer || !serverMeta || !Object.keys(serverOverrides).length) {
+      setRendered(undefined);
+      setIsRendering(false);
+      setServerRenderError(false);
+      return;
+    }
+    const controller = new AbortController();
+    const signal = controller.signal;
+    setIsRendering(true);
+    setServerRenderError(false);
+    const timer = window.setTimeout(async () => {
+      try {
+        const { data, response } = await fetchClient.POST("/files/{id}/psd-preview", {
+          params: { path: { id: fileId } },
+          body: { visibility: Object.entries(serverOverrides).map(([id, visible]) => ({ id: Number(id), visible })) },
+          parseAs: "blob", signal,
+        });
+        if (!data || !response.ok || data.type !== "image/png") throw new Error("Invalid preview image");
+        const image = new Image();
+        const url = URL.createObjectURL(data);
+        try {
+          image.src = url;
+          await image.decode();
+          if (!signal.aborted) setRendered(image);
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      } catch {
+        if (!signal.aborted) setServerRenderError(true);
+      } finally {
+        if (!signal.aborted) setIsRendering(false);
+      }
+    }, 180);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [fileId, serverMeta, serverOverrides, useServer]);
+  const serverVisibility = useMemo(() => ({ ...seedVisibility(serverTree ?? []), ...serverOverrides }), [serverTree, serverOverrides]);
+
   const openPanel = useCallback(() => {
     setPanelOpen(true);
-    loadLayers();
-  }, [loadLayers]);
+    if (!useServer) loadLayers();
+  }, [loadLayers, useServer]);
 
   const onToggle = useCallback((id: string) => {
     setVisible((current) => ({ ...current, [id]: current[id] === false }));
@@ -167,23 +225,23 @@ function PsdPreview({ assetUrl, size }: PsdPreviewProps) {
       <div className="relative min-w-0 grow">
         <PsdCanvas
           doc={doc}
-          composite={composite}
+          composite={rendered ?? composite}
           images={layerImages}
           visible={layerImages ? visible : undefined}
           maxDim={budget.renderMaxDim}
         />
 
         <div className="absolute right-4 bottom-2 z-20 flex flex-col items-end gap-2">
-          {(layersError || (verdict && !verdict.available)) && (
+          {(layersError || serverMetaError || serverRenderError || (!useServer && verdict && !verdict.available)) && (
             <p className="max-w-xs rounded-medium bg-surface-container px-3 py-1.5 text-right text-body-small text-on-surface-variant shadow-1">
-              {layersError || verdict?.reason}
+              {layersError || (serverMetaError ? "The server cannot inspect layers for this file." : serverRenderError ? "The server could not render these layers. The last available preview is still shown." : verdict?.reason)}
             </p>
           )}
           <Button
             isIconOnly
             variant="filled"
             aria-label={panelOpen ? "Hide layers" : "Show layers"}
-            isDisabled={!verdict?.available}
+            isDisabled={!verdict?.available && !useServer}
             onPress={panelOpen ? () => setPanelOpen(false) : openPanel}
           >
             {panelOpen ? (
@@ -195,7 +253,7 @@ function PsdPreview({ assetUrl, size }: PsdPreviewProps) {
         </div>
       </div>
 
-      {panelOpen && doc.tree.length > 0 && (
+      {panelOpen && (useServer || doc.tree.length > 0) && (
         <div
           className={clsx(
             // Sidebar from md up; a bottom sheet below it, overlaying the canvas
@@ -206,12 +264,12 @@ function PsdPreview({ assetUrl, size }: PsdPreviewProps) {
           )}
         >
           <PsdLayersPanel
-            tree={doc.tree}
-            visible={visible}
-            unsupportedBlends={parsed?.unsupportedBlends ?? []}
-            isLoading={isLoadingLayers}
-            onToggle={onToggle}
-            onReset={onReset}
+            tree={useServer ? serverTree ?? [] : doc.tree}
+            visible={useServer ? serverVisibility : visible}
+            unsupportedBlends={useServer ? [] : parsed?.unsupportedBlends ?? []}
+            isLoading={useServer ? loadingServerMeta || isRendering : isLoadingLayers}
+            onToggle={useServer ? (id) => setServerOverrides((current) => ({ ...current, [id]: !(current[id] ?? serverVisibility[id]) })) : onToggle}
+            onReset={useServer ? () => setServerOverrides({}) : onReset}
             onClose={() => setPanelOpen(false)}
           />
         </div>
@@ -227,6 +285,15 @@ function PsdMessage({ message }: { message: string }) {
       <p className="text-body-medium">{message}</p>
     </div>
   );
+}
+
+function serverLayer(layer: components["schemas"]["PsdPreviewLayer"]): PsdLayerNode {
+  return {
+    id: String(layer.id), name: layer.name, kind: layer.group ? "group" : "layer",
+    hidden: !layer.visible, opacity: 1, blendMode: "normal", blendSupported: true,
+    left: 0, top: 0, width: 0, height: 0, clipping: false,
+    children: layer.children?.map(serverLayer),
+  };
 }
 
 function seedVisibility(nodes: PsdLayerNode[], into: Record<string, boolean> = {}) {
@@ -264,6 +331,7 @@ const LAYERS_FAILED_MESSAGE = "Layer data couldn't be read; showing the flattene
 
 interface PsdPreviewProps {
   assetUrl: string;
+  fileId?: string;
   size: number;
 }
 

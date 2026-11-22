@@ -342,6 +342,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/files/{id}/psd-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect layers for a server-side PSD preview */
+        get: operations["Files_psdPreviewMetadata"];
+        put?: never;
+        /**
+         * Render a lossless PSD preview with layer visibility overrides
+         * @description Returns a display-sized PNG without modifying the source PSD. Layers not specified retain their saved visibility.
+         */
+        post: operations["Files_psdPreviewRender"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/files/{id}/share": {
         parameters: {
             query?: never;
@@ -1271,6 +1292,29 @@ export interface components {
              * @example abc123
              */
             salt?: string;
+        };
+        PsdLayerVisibility: {
+            /** Format: int32 */
+            id: number;
+            visible: boolean;
+        };
+        PsdPreviewLayer: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            visible: boolean;
+            group: boolean;
+            children?: components["schemas"]["PsdPreviewLayer"][];
+        };
+        PsdPreviewMetadata: {
+            /** Format: int32 */
+            width: number;
+            /** Format: int32 */
+            height: number;
+            layers: components["schemas"]["PsdPreviewLayer"][];
+        };
+        PsdPreviewRequest: {
+            visibility: components["schemas"]["PsdLayerVisibility"][];
         };
         /** @description Server-controlled feature flags exposed to clients */
         ServerConfig: {
@@ -2282,6 +2326,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FileDuplicates"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    Files_psdPreviewMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PsdPreviewMetadata"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    Files_psdPreviewRender: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PsdPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
                 };
             };
             /** @description An unexpected error response. */
