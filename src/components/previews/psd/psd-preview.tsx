@@ -127,10 +127,12 @@ function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
     if (parsed && !parsed.composite && verdict?.available) loadLayers();
   }, [parsed, verdict, loadLayers]);
 
-  const useServer = !!fileId && !!parsed?.layerCount && verdict?.available === false;
+  // A PSD can fit the browser budget but still need the server's blend operators.
+  const preferServer = !!fileId && !!parsed?.layerCount &&
+    (verdict?.available === false || parsed.unsupportedBlends.length > 0);
   const { data: serverMeta, isFetching: loadingServerMeta, isError: serverMetaError } = useQuery({
-    queryKey: ["psd-preview-metadata", assetUrl],
-    enabled: useServer && panelOpen,
+    queryKey: ["psd-preview-metadata", fileId, assetUrl],
+    enabled: preferServer && panelOpen,
     retry: false,
     queryFn: async ({ signal }) => {
       const { data, response } = await fetchClient.GET("/files/{id}/psd-preview", {
@@ -140,6 +142,11 @@ function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
       return data;
     },
   });
+  const canFallBack = verdict?.available === true;
+  const useServer = preferServer && !(serverMetaError && canFallBack);
+  useEffect(() => {
+    if (panelOpen && serverMetaError && canFallBack) loadLayers();
+  }, [panelOpen, serverMetaError, canFallBack, loadLayers]);
   const serverTree = useMemo(() => serverMeta?.layers.map(serverLayer), [serverMeta]);
   const [serverOverrides, setServerOverrides] = useState<Record<string, boolean>>({});
   const [rendered, setRendered] = useState<HTMLImageElement>();
@@ -226,8 +233,8 @@ function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
         <PsdCanvas
           doc={doc}
           composite={rendered ?? composite}
-          images={layerImages}
-          visible={layerImages ? visible : undefined}
+          images={rendered ? undefined : layerImages}
+          visible={!rendered && layerImages ? visible : undefined}
           maxDim={budget.renderMaxDim}
         />
 
