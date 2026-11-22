@@ -52,7 +52,7 @@ function PsdCanvas({ doc, images, visible, composite, maxDim }: PsdCanvasProps) 
       if (!ctx) return;
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
       ctx.clearRect(0, 0, doc.width, doc.height);
-      ctx.drawImage(composite, 0, 0);
+      ctx.drawImage(composite, 0, 0, doc.width, doc.height);
     });
 
     return () => cancelAnimationFrame(frameRef.current);
