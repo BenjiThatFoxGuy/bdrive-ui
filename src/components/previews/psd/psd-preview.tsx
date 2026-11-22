@@ -274,10 +274,10 @@ function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
           )}
         >
           <PsdLayersPanel
-            tree={useServer ? serverTree ?? [] : doc.tree}
+            tree={useServer ? serverTree ?? [] : doc.tree.toReversed()}
             visible={useServer ? serverVisibility : visible}
             unsupportedBlends={useServer ? [] : parsed?.unsupportedBlends ?? []}
-            isLoading={useServer ? loadingServerMeta || isRendering : isLoadingLayers}
+            isLoading={useServer ? loadingServerMeta : isLoadingLayers}
             onToggle={useServer ? (id) => setServerOverrides((current) => ({ ...current, [id]: !(current[id] ?? serverVisibility[id]) })) : onToggle}
             onReset={useServer ? () => setServerOverrides({}) : onReset}
             onClose={() => setPanelOpen(false)}
