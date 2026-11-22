@@ -1343,6 +1343,16 @@ export interface components {
              * @example true
              */
             encryptionEnabled: boolean;
+            /**
+             * @description Whether the operator enabled server-side PSD preview for every file (opt-in). When false, clients keep the browser fast path unless the browser lacks a blend mode.
+             * @example false
+             */
+            psdServerPreview: boolean;
+            /**
+             * @description Whether this server can render PSD layer previews at all. Clients only route PSD previews to the server when true.
+             * @example true
+             */
+            psdServerCapable: boolean;
         };
         /** @description User session information containing authentication and profile details */
         Session: {

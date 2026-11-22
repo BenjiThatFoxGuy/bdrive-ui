@@ -50,6 +50,8 @@ export const useServerConfig = () => {
     shortlinksEnabled: data?.shortlinksEnabled ?? false,
     shortlinkDomain: data?.shortlinkDomain,
     encryptionEnabled: data?.encryptionEnabled ?? false,
+    psdServerPreview: data?.psdServerPreview ?? false,
+    psdServerCapable: data?.psdServerCapable ?? true,
   };
 };
 

@@ -21,11 +21,19 @@ import {
 } from "@/utils/psd";
 import { closePsdImages, createPsdSession, type PsdSession } from "@/utils/psd-client";
 import { needsServerBlend } from "@/utils/psd-renderer-routing";
+import { useServerConfig } from "@/utils/query-options";
 import PsdCanvas from "./psd-canvas";
 import PsdLayersPanel from "./psd-layers-panel";
 
 function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
   const budget = useMemo(psdBudget, []);
+  const { psdServerPreview, psdServerCapable } = useServerConfig();
+  // Chrome and Firefox are the only engines the browser compositor is validated
+  // against. Anything else (Safari, Edge, in-app webviews) always offloads.
+  const isChromiumOrFirefox = useMemo(() => {
+    const ua = navigator.userAgent;
+    return /Firefox\//i.test(ua) || (/Chrome\//i.test(ua) && !/Edg\//i.test(ua));
+  }, []);
   const sessionRef = useRef<PsdSession>();
   const [panelOpen, setPanelOpen] = useState(false);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
@@ -128,10 +136,11 @@ function PsdPreview({ assetUrl, size, fileId }: PsdPreviewProps) {
     if (parsed && !parsed.composite && verdict?.available) loadLayers();
   }, [parsed, verdict, loadLayers]);
 
-  // A PSD can fit the browser budget but still need the server's blend operators.
+  // A PSD can fit the browser budget but still need the server's blend operators,
+  // or the operator may want every preview composited server-side.
   const needsBlendOffload = useMemo(() => parsed ? needsServerBlend(parsed.tree) : false, [parsed]);
-  const preferServer = !!fileId && !!parsed?.layerCount &&
-    (verdict?.available === false || needsBlendOffload);
+  const preferServer = !!fileId && !!parsed?.layerCount && psdServerCapable &&
+    (verdict?.available === false || needsBlendOffload || psdServerPreview || !isChromiumOrFirefox);
   const { data: serverMeta, isFetching: loadingServerMeta, isError: serverMetaError } = useQuery({
     queryKey: ["psd-preview-metadata", fileId, assetUrl],
     enabled: preferServer && panelOpen,
